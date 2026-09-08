@@ -1,7 +1,8 @@
 # Register a self signed CA with Twingate and issue a certificate for the Gateway.
 # The Client uses this to verify communication with the Gateway
 locals {
-  # NOTE: each time a service address or alias changes, the Gateway's certificate must be regenerated and re-registered with Twingate. Otherwise, the Gateway will fail to start.
+  # NOTE: a change to any service address or alias regenerates the leaf, which requires
+  # replacing the Gateway container.
   cert_dns_names = distinct(concat(
     [for service in values(local.twingate_services) : service.address],
     compact([for service in values(local.twingate_services) : service.alias]),

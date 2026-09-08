@@ -1,5 +1,9 @@
-# The box's network. Fixed -- everything here is reached through Twingate.
+# Define hard defaults for the box environment.
 locals {
+  # Prefixes the objects this creates in Twingate, so they are recognizable in
+  # an account that holds more than the box.
+  name_prefix = "twingate-in-a-box-"
+
   network_name = "twingate"
   subnet       = "172.28.0.0/24"
   gateway_ipv4 = "172.28.0.250"
