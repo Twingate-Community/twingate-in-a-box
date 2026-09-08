@@ -9,14 +9,8 @@ variable "tg_network" {
   type        = string
 }
 
-variable "name_prefix" {
-  description = "Prefix for container and Twingate object names, so two people running this lab in one Twingate account do not collide."
-  type        = string
-  default     = "tglab-"
-}
-
 variable "gateway_image" {
-  description = "Gateway image. Pin it -- the config schema changes between versions, and the Gateway accepts an older schema silently before failing validation."
+  description = "Gateway image."
   type        = string
   default     = "ghcr.io/twingate/gateway:1.1.0"
 }
