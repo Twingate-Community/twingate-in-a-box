@@ -1,11 +1,7 @@
-# A self-signed CA registered with Twingate, and a leaf the Gateway presents.
-# Twingate never issues the Gateway's certificate -- it only verifies what the
-# Gateway presents against the CA registered in twingate.tf.
+# Register a self signed CA with Twingate and issue a certificate for the Gateway.
+# The Client uses this to verify communication with the Gateway
 locals {
-  # A client dials the Gateway but sets SNI to the resource address, so the leaf
-  # covers app addresses rather than the Gateway's own. Named explicitly because
-  # a two-label wildcard (*.twingate) fails hostname verification, which means
-  # adding a service changes the cert and replaces the Gateway container.
+  # NOTE: each time a service address or alias changes, the Gateway's certificate must be regenerated and re-registered with Twingate. Otherwise, the Gateway will fail to start.
   cert_dns_names = distinct(concat(
     [for service in values(local.twingate_services) : service.address],
     compact([for service in values(local.twingate_services) : service.alias]),
