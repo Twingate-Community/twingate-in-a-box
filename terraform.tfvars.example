@@ -1,0 +1,4 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+
+tg_api_token = "your-twingate-api-token"
+tg_network   = "yournetwork" # the <network> in <network>.twingate.com
