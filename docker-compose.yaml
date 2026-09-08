@@ -1,0 +1,60 @@
+# Apps published through the Twingate Gateway. Terraform reads this file to find
+# them and never manages them: terraform apply, then docker compose up -d.
+#
+# To publish a service, assign it to the `twingate` network and add `twingate.enable: "true"`
+# Configure the following labels to control how the Gateway interacts with the service:
+# - `twingate.port`: REQUIRED - the port the service listens on
+# - `twingate.groups`: REQUIRED - comma-separated list of groups allowed to access the service
+# - `twingate.alias`: optional hostname alias for the service
+# - `twingate.name`: optional resource name in Twingate, defaults to the service name
+# - `twingate.header.<Header-Name>`: optional headers to inject into requests to the service
+#
+# Never add port mappings. This is what `twingate.port` is for.
+
+networks:
+  twingate:
+    # Created by Terraform. Run terraform apply first.
+    external: true
+
+volumes:
+  openwebui:
+
+services:
+  # Open WebUI, using its Trusted Header SSO. The Gateway injects the identity
+  # headers from the validated Twingate token, so the user is already logged in.
+  # https://docs.openwebui.com/features/authentication-access/auth/sso/#trusted-header
+  openwebui:
+    image: ghcr.io/open-webui/open-webui:main
+    restart: unless-stopped
+    environment:
+      WEBUI_AUTH_TRUSTED_EMAIL_HEADER: X-Twingate-User
+      WEBUI_AUTH_TRUSTED_GROUPS_HEADER: X-Twingate-Groups
+      # Without this the first user becomes admin and everyone after lands in
+      # "pending", which looks like a broken demo.
+      DEFAULT_USER_ROLE: user
+      ENABLE_OLLAMA_API: "false"
+      ENABLE_OPENAI_API: "false"
+    volumes:
+      - openwebui:/app/backend/data
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "8080"
+      twingate.groups: "Everyone"
+
+  # Echoes the request back at /headers, which is the fastest way to confirm the
+  # Gateway is injecting identity and separates "the Gateway isn't injecting"
+  # from "my app isn't reading them".
+  echo:
+    image: ghcr.io/mccutchen/go-httpbin:v2.15.0
+    restart: unless-stopped
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "8080"
+      twingate.groups: "Everyone"
+      # Per-resource, so only this service sees the token -- the gateway-wide
+      # headers deliberately omit it. /headers renders the full token.
+      twingate.header.Authorization: "Bearer {{jwt}}"
