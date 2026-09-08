@@ -1,0 +1,12 @@
+# State holds the CA private key, the Gateway leaf private key, and the connector
+# tokens in plaintext. Never commit it.
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+terraform.tfvars
+*.tfplan
+tf.plan
+
+# Exported CA cert, if you dump it for a browser
+*.pem

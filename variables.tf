@@ -1,0 +1,40 @@
+variable "tg_api_token" {
+  description = "Twingate API token with Read, Write and Provision permissions."
+  type        = string
+  sensitive   = true
+}
+
+variable "tg_network" {
+  description = "Twingate network slug (the '<slug>' in <slug>.twingate.com)."
+  type        = string
+}
+
+variable "name_prefix" {
+  description = "Prefix for container and Twingate object names, so two people running this lab in one Twingate account do not collide."
+  type        = string
+  default     = "tglab-"
+}
+
+variable "gateway_image" {
+  description = "Gateway image. Pin it -- the config schema changes between versions, and the Gateway accepts an older schema silently before failing validation."
+  type        = string
+  default     = "ghcr.io/twingate/gateway:1.1.0"
+}
+
+variable "connector_image" {
+  description = "Connector image."
+  type        = string
+  default     = "twingate/connector:1"
+}
+
+variable "gateway_request_headers" {
+  description = "Headers the Gateway injects into every proxied request. Applied with Header.Set(), so a client cannot spoof them. Per-resource twingate.header.* labels override these."
+  type        = map(string)
+
+  # No {{jwt}} by default: the Gateway logs full request headers on every
+  # request, so that would put the token in stdout.
+  default = {
+    "X-Twingate-User"   = "{{username}}" # the user's email address
+    "X-Twingate-Groups" = "{{groups}}"   # comma-separated
+  }
+}
