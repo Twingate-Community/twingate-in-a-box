@@ -15,7 +15,7 @@
       }
     ]
   },
-  "description": "Twingate Connector metrics. From github.com/Twingate-Community/dashboards.",
+  "description": "Twingate Connector metrics.",
   "editable": true,
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
@@ -702,7 +702,7 @@
   },
   "timepicker": {},
   "timezone": "browser",
-  "title": "Twingate Insights",
+  "title": "Twingate Connector",
   "uid": "adb4jtg",
   "version": 14,
   "weekStart": ""
