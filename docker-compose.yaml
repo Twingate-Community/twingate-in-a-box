@@ -142,6 +142,7 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
+      twingate.groups: "Admin,Everyone"
       twingate.header.X-JWT-Assertion: "{{jwt}}"
 
   # Keeps its own login. Twingate supplies the name and the network isolation and
