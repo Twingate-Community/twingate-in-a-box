@@ -39,6 +39,7 @@ hand it a forged `X-Twingate-User`.
 
 ```bash
 cp terraform.tfvars.example terraform.tfvars   # add tg_api_token and tg_network
+cp .env.example .env                           # add your network slug for Compose
 terraform init
 terraform apply
 docker compose up -d
@@ -56,6 +57,27 @@ docker logs twingate-in-a-box-gateway
 Give the Connector about 30 seconds to register, then connect the Twingate Client and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
 headers at `/headers`, which shows identity propagation working end to end.
+
+## What the demo apps show
+
+Open WebUI and Grafana both sign you in without a login form, by two different routes.
+Open WebUI reads the username straight out of `X-Twingate-User` and trusts it. Grafana
+takes the whole Twingate token from `X-JWT-Assertion` and checks its signature against
+Twingate's public keys, so a forged token fails on cryptography rather than on where it
+came from. That is the stronger pattern, and the one to copy for a real app.
+
+Both are set per Resource with `twingate.header.*`, since each app wants a different
+header. Grafana is also scoped to the Admin group while the others allow Everyone.
+
+Prometheus scrapes the Gateway and the Connector. It is not published, because Grafana
+reaches it over the box network and nothing else needs to.
+
+Grafana comes with the Prometheus datasource and two dashboards already loaded, from
+`dashboards/`. The Connector one is from
+[Twingate-Community/dashboards](https://github.com/Twingate-Community/dashboards). The
+Gateway one covers request rate and status, Client and upstream latency, authentication
+attempts, throughput, and transport mix. Edits you make in the UI stick until the
+container is recreated, so copy anything you want to keep back into `dashboards/`.
 
 ## Publishing an app
 
