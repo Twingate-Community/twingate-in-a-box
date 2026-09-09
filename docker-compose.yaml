@@ -20,6 +20,7 @@ volumes:
   openwebui:
   prometheus:
   grafana:
+  uptimekuma:
 
 configs:
   prometheus:
@@ -122,6 +123,9 @@ services:
       GF_AUTH_JWT_EMAIL_ATTRIBUTE_PATH: user.email
       GF_AUTH_JWT_AUTO_SIGN_UP: "true"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Twingate group to Grafana role. Without this everyone lands on Grafana's
+      # default of Viewer, since the token carries no role Grafana recognizes.
+      GF_AUTH_JWT_ROLE_ATTRIBUTE_PATH: "contains(user.groups[*], 'Admin') && 'Admin' || 'Viewer'"
       # Checked against Twingate's public keys, so a forged token fails on
       # signature rather than on where it came from. TWINGATE_NETWORK is in .env.
       GF_AUTH_JWT_JWK_SET_URL: https://${TWINGATE_NETWORK}.twingate.com/api/v1/jwk/ec
@@ -138,5 +142,31 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
-      twingate.groups: "Admin"
+      twingate.groups: "Admin,Everyone"
       twingate.header.X-JWT-Assertion: "{{jwt}}"
+
+  # Keeps its own login. Twingate supplies the name and the network isolation and
+  # leaves the app's authentication alone, which is the plain reverse proxy case.
+  uptimekuma:
+    image: louislam/uptime-kuma:1
+    restart: unless-stopped
+    volumes:
+      - uptimekuma:/app/data
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "3001"
+      twingate.groups: "Everyone"
+
+  # Has no authentication at all. Publishing it is only reasonable because
+  # Twingate is the sole route to it and no port is bound on the host.
+  ittools:
+    image: corentinth/it-tools:2024.10.22-7ca5933
+    restart: unless-stopped
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "80"
+      twingate.groups: "Everyone"

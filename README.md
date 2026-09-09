@@ -63,11 +63,20 @@ headers at `/headers`, which shows identity propagation working end to end.
 Open WebUI and Grafana both sign you in without a login form, by two different routes.
 Open WebUI reads the username straight out of `X-Twingate-User` and trusts it. Grafana
 takes the whole Twingate token from `X-JWT-Assertion` and checks its signature against
-Twingate's public keys, so a forged token fails on cryptography rather than on where it
-came from. That is the stronger pattern, and the one to copy for a real app.
+Twingate's public keys. A forged token then fails on cryptography rather than on where it
+came from. For a real app, copy Grafana.
 
-Both are set per Resource with `twingate.header.*`, since each app wants a different
-header. Grafana is also scoped to the Admin group while the others allow Everyone.
+Each is set per Resource with `twingate.header.*`, since the two apps want different
+headers. Grafana goes further and maps the group out of the token to a Grafana role, so
+Admin membership decides what you can do once you are in. Drop that mapping and Grafana
+signs everyone in as a Viewer.
+
+Uptime Kuma and IT-Tools do none of that. They are the plain reverse proxy case: a name
+instead of an IP and a port, with Twingate deciding who reaches it. Uptime Kuma keeps its
+own login and Twingate leaves it alone. IT-Tools has no login at all, and publishing it is
+only reasonable because nothing binds a host port and there is no route in except the
+Gateway. The Gateway still adds the account-wide `X-Twingate-User` and `X-Twingate-Groups`
+to their requests, from `var.gateway_request_headers`, and neither app reads them.
 
 Prometheus scrapes the Gateway and the Connector. It is not published, because Grafana
 reaches it over the box network and nothing else needs to.
@@ -95,9 +104,9 @@ services:
       twingate.groups: "Everyone"
 ```
 
-Then run `terraform apply && docker compose up -d`. Its address is `myapp.twingate`,
-which Docker resolves on its own. Adding a service changes the certificate, which
-replaces the Gateway container. Expect a brief interruption.
+Then run `terraform apply && docker compose up -d`. Docker resolves its address,
+`myapp.twingate`, on its own. Adding a service changes the certificate, so Terraform
+replaces the Gateway container and the other apps drop for a few seconds.
 
 A `twingate.header.<Name>` label injects a header into requests to that one service. The
 value may contain a single `{{key}}` from `jwt`, `username`, `groups`,
