@@ -67,7 +67,17 @@ Twingate's public keys, so a forged token fails on cryptography rather than on w
 came from. That is the stronger pattern, and the one to copy for a real app.
 
 Both are set per Resource with `twingate.header.*`, since each app wants a different
-header. Grafana is also scoped to the Admin group while the others allow Everyone.
+header. Grafana goes further and maps the group out of the token to a Grafana role, so
+membership in Admin decides what you can do once you are in, not just whether you get in.
+Without that mapping Grafana signs everyone in as a Viewer.
+
+Uptime Kuma and IT-Tools do none of that, which is the plain reverse proxy case: a name
+instead of an IP and a port, and Twingate deciding who reaches it. Uptime Kuma keeps its
+own login and Twingate leaves it alone. IT-Tools has no login at all, and publishing it is
+only reasonable because nothing binds a host port and there is no route in except the
+Gateway. Both still receive the account-wide `X-Twingate-User` and `X-Twingate-Groups`
+from `var.gateway_request_headers`, since the Gateway adds those to every request. They
+just ignore them.
 
 Prometheus scrapes the Gateway and the Connector. It is not published, because Grafana
 reaches it over the box network and nothing else needs to.
