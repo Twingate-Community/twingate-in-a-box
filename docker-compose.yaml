@@ -18,6 +18,43 @@ networks:
 
 volumes:
   openwebui:
+  prometheus:
+  grafana:
+
+configs:
+  prometheus:
+    content: |
+      global:
+        scrape_interval: 15s
+      scrape_configs:
+        - job_name: gateway
+          static_configs:
+            - targets: ["twingate-in-a-box-gateway:9090"]
+        - job_name: connector
+          static_configs:
+            - targets: ["twingate-in-a-box-connector:9090"]
+
+  grafana-datasource:
+    content: |
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          uid: prometheus
+          url: http://prometheus:9090
+          isDefault: true
+
+  # Loads everything in ./dashboards. Kept out of the provisioning directory so
+  # Grafana does not try to read this file as a dashboard.
+  grafana-dashboards:
+    content: |
+      apiVersion: 1
+      providers:
+        - name: twingate
+          type: file
+          allowUiUpdates: true
+          options:
+            path: /etc/dashboards
 
 services:
   # Open WebUI, using its Trusted Header SSO. The Gateway injects the identity
@@ -42,6 +79,7 @@ services:
       twingate.enable: "true"
       twingate.port: "8080"
       twingate.groups: "Everyone"
+      # Headers injected at Gateway level. See variables.tf for the default set
 
   # Echoes the request back at /headers, which is the fastest way to confirm the
   # Gateway is injecting identity and separates "the Gateway isn't injecting"
@@ -58,3 +96,47 @@ services:
       # Per-Resource, so only this service sees the token -- the Gateway-wide
       # headers deliberately omit it. /headers renders the full token.
       twingate.header.Authorization: "Bearer {{jwt}}"
+
+  # Scrapes the Gateway and the Connector. Deliberately not published: Grafana
+  # reaches it over the box network, and nothing else needs to.
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    restart: unless-stopped
+    configs:
+      - source: prometheus
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - prometheus:/prometheus
+    networks:
+      - twingate
+
+  # Grafana verifies the Twingate token itself rather than trusting a header.
+  # https://www.twingate.com/docs/web-app-grafana
+  grafana:
+    image: grafana/grafana:12.2.1
+    restart: unless-stopped
+    environment:
+      GF_AUTH_JWT_ENABLED: "true"
+      GF_AUTH_JWT_HEADER_NAME: X-JWT-Assertion
+      GF_AUTH_JWT_USERNAME_ATTRIBUTE_PATH: user.username
+      GF_AUTH_JWT_EMAIL_ATTRIBUTE_PATH: user.email
+      GF_AUTH_JWT_AUTO_SIGN_UP: "true"
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+      # Checked against Twingate's public keys, so a forged token fails on
+      # signature rather than on where it came from. TWINGATE_NETWORK is in .env.
+      GF_AUTH_JWT_JWK_SET_URL: https://${TWINGATE_NETWORK}.twingate.com/api/v1/jwk/ec
+    configs:
+      - source: grafana-datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana-dashboards
+        target: /etc/grafana/provisioning/dashboards/twingate.yml
+    volumes:
+      - grafana:/var/lib/grafana
+      - ./dashboards:/etc/dashboards:ro
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "3000"
+      twingate.groups: "Admin"
+      twingate.header.X-JWT-Assertion: "{{jwt}}"

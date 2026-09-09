@@ -10,3 +10,6 @@ tf.plan
 
 # Exported CA cert, if you dump it for a browser
 *.pem
+
+# Holds your network slug. Compose reads it, and so does Terraform.
+.env
