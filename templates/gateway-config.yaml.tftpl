@@ -1,0 +1,13 @@
+twingate:
+  network: ${network}
+
+port: ${port}
+metricsPort: ${metrics_port}
+
+tls:
+  certificateFile: /etc/gateway/tls.crt
+  privateKeyFile: /etc/gateway/tls.key
+
+# Injected into every proxied request.
+webApp:
+  requestHeaders: ${jsonencode(request_headers)}
