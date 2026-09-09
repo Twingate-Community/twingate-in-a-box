@@ -14,7 +14,7 @@ locals {
     }
   }
 
-  # Config for the published set of Twingate resources. The Gateway uses this to configure itself, and the Twingate provider uses it to create the resources.
+  # Config for the published set of Twingate Resources. The Gateway uses this to configure itself, and the Twingate provider uses it to create the Resources.
   twingate_services = {
     for service_name, labels in local.service_labels : service_name => {
       # Compose registers every service under <service>.<network> in Docker's

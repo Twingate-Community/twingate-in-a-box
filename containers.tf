@@ -8,7 +8,7 @@ locals {
   })
 }
 
-# Not internal: the Gateway fetches JWKS at boot and the connector needs to reach
+# Not internal: the Gateway fetches JWKS at boot and the Connector needs to reach
 # Twingate. Inbound is what the box closes off, not outbound.
 resource "docker_network" "box" {
   name       = local.network_name
@@ -53,7 +53,7 @@ resource "docker_container" "gateway" {
   }
 
   # No ports block, on purpose. The Gateway is reachable only from inside this
-  # network, via the connector.
+  # network, via the Connector.
 
   # Uploaded rather than mounted, which keeps the leaf private key off the host
   # filesystem. owner and group must be 65532: the image is distroless nonroot, so
@@ -84,7 +84,7 @@ resource "docker_container" "gateway" {
 
   # Every upload field is ForceNew, so a config or certificate change replaces this
   # container on its own. Do not add create_before_destroy: the new container
-  # cannot claim the gateway address while the old one still holds it.
+  # cannot claim the Gateway address while the old one still holds it.
 
   depends_on = [twingate_gateway.main]
 }
