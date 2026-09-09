@@ -1,24 +1,28 @@
 # Twingate in a Box
 
-A self-contained lab that puts containerized web apps behind a Twingate Gateway. The
-Gateway passes the caller's identity to the app, so opening the demo signs you in with
-no password.
+A complete Twingate deployment that runs on your laptop. Docker holds the Remote
+Network, the Connector and the Gateway, so there is no cloud infrastructure to stand up
+or tear down.
+
+The Connector provides Zero Trust network access to anything you define as a Resource.
+The Gateway adds identity-aware access for web apps, passing the caller's identity
+through so that opening a supported app signs you in with no password.
 
 Terraform owns the Twingate side and the network. Docker Compose owns the apps, and
 Terraform only reads `docker-compose.yaml` to find which ones to publish.
 
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
-> the connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
+> the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
 
 ## The box is closed to inbound traffic
 
 The Gateway registers at `172.28.0.250:8443`, an address on a Docker bridge network that
-is not reachable from the host or the internet. Every client arrives through the
-connector, so the Gateway never sees a packet Twingate has not already authenticated and
+is not reachable from the host or the internet. Every Client arrives through the
+Connector, so the Gateway never sees a packet Twingate has not already authenticated and
 authorized.
 
-Outbound is open, and meant to be. The Gateway fetches JWKS at boot, the connector
+Outbound is open, and meant to be. The Gateway fetches JWKS at boot, the Connector
 reaches Twingate, and apps can call whatever they need.
 
 This is why no published service declares `ports:`, and why Terraform refuses the plan
@@ -49,7 +53,7 @@ healthcheck, so check that it stayed up:
 docker logs twingate-in-a-box-gateway
 ```
 
-Give the connector about 30 seconds to register, then connect the Twingate client and
+Give the Connector about 30 seconds to register, then connect the Twingate Client and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
 headers at `/headers`, which shows identity propagation working end to end.
 

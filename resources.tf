@@ -1,4 +1,4 @@
-# One web app resource per published service. This is where a service becomes
+# One Web App Resource per published service. This is where a service becomes
 # reachable through Twingate.
 resource "twingate_web_app_resource" "app" {
   for_each = local.twingate_services
@@ -27,7 +27,7 @@ resource "twingate_web_app_resource" "app" {
       error_message = "Service '${each.key}' sets twingate.enable but no twingate.port. Add the port the container listens on."
     }
 
-    # Without a group the resource is created but nobody can reach it, which
+    # Without a group the Resource is created but nobody can reach it, which
     # looks identical to a broken Gateway.
     precondition {
       condition     = length(each.value.group_names) > 0

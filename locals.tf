@@ -9,7 +9,7 @@ locals {
   gateway_ipv4 = "172.28.0.250"
   gateway_port = 8443
 
-  # Served by the Gateway and the connector both, on their own addresses.
+  # Served by the Gateway and the Connector both, on their own addresses.
   # Unpublished, and nothing scrapes it yet.
   metrics_port = 9090
 }

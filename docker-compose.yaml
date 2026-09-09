@@ -6,7 +6,7 @@
 # - `twingate.port`: REQUIRED - the port the service listens on
 # - `twingate.groups`: REQUIRED - comma-separated list of groups allowed to access the service
 # - `twingate.alias`: optional hostname alias for the service
-# - `twingate.name`: optional resource name in Twingate, defaults to the service name
+# - `twingate.name`: optional Resource name in Twingate, defaults to the service name
 # - `twingate.header.<Header-Name>`: optional headers to inject into requests to the service
 #
 # Never add port mappings. This is what `twingate.port` is for.
@@ -55,6 +55,6 @@ services:
       twingate.enable: "true"
       twingate.port: "8080"
       twingate.groups: "Everyone"
-      # Per-resource, so only this service sees the token -- the gateway-wide
+      # Per-Resource, so only this service sees the token -- the Gateway-wide
       # headers deliberately omit it. /headers renders the full token.
       twingate.header.Authorization: "Bearer {{jwt}}"

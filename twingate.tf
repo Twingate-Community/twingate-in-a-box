@@ -1,5 +1,5 @@
-# The Twingate side of the box: one remote network holding one connector and one
-# gateway, plus the CA registration that lets clients trust what the Gateway
+# The Twingate side of the box: one Remote Network holding one Connector and one
+# Gateway, plus the CA registration that lets Clients trust what the Gateway
 # presents.
 locals {
   # Groups named by any published service, looked up once each.
@@ -14,8 +14,8 @@ resource "twingate_remote_network" "main" {
   name = "${local.name_prefix}network"
 }
 
-# certificate is write-only: it is never stored in state, and changing it
-# replaces this resource.
+# certificate is write-only: it is never stored in state, and changing it forces
+# replacement.
 resource "twingate_x509_certificate_authority" "main" {
   name        = "${local.name_prefix}ca"
   certificate = tls_self_signed_cert.ca.cert_pem
@@ -36,7 +36,7 @@ resource "twingate_connector" "main" {
 }
 
 # Managed rather than ephemeral: the ephemeral variant re-mints tokens on every
-# plan, leaving the running connector holding credentials Terraform has already
+# plan, leaving the running Connector holding credentials Terraform has already
 # rotated away from.
 resource "twingate_connector_tokens" "main" {
   connector_id = twingate_connector.main.id

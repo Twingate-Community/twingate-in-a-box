@@ -22,7 +22,7 @@ variable "connector_image" {
 }
 
 variable "gateway_request_headers" {
-  description = "Headers the Gateway injects into every proxied request. Applied with Header.Set(), so a client cannot spoof them. Per-resource twingate.header.* labels override these."
+  description = "Headers the Gateway injects into every proxied request. Applied with Header.Set(), so a Client cannot spoof them. Per-Resource twingate.header.* labels override these."
   type        = map(string)
 
   # No {{jwt}} by default: the Gateway logs full request headers on every
