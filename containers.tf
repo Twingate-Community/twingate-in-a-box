@@ -22,7 +22,7 @@ resource "docker_network" "box" {
   lifecycle {
     precondition {
       condition     = length(local.host_exposed) == 0
-      error_message = "Compose services ${join(", ", local.host_exposed)} publish host ports. Nothing on this network may: an app reachable from the host can be sent a forged identity header."
+      error_message = "Compose services ${join(", ", local.host_exposed)} expose ports to the host. Ports reachable from the host can accept headers from any client."
     }
   }
 }
