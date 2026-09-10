@@ -1,55 +1,24 @@
 # The Twingate side of the box: one Remote Network holding one Connector and one
-# Gateway, plus the CA registration that lets Clients trust what the Gateway
-# presents.
+# Gateway, on a bridge that Compose joins.
 locals {
-  # Groups named by any published service, looked up once each.
-  group_names = distinct(flatten([
-    for service in values(local.twingate_services) : service.group_names
-  ]))
-
-  group_ids = { for name, found in data.twingate_groups.by_name : name => found.groups[0].id }
+  # NOTE: a change to any service address or alias regenerates the leaf, which
+  # requires replacing the Gateway container.
+  cert_dns_names = distinct(concat(
+    [for service in values(local.twingate_services) : service.address],
+    compact([for service in values(local.twingate_services) : service.alias]),
+  ))
 }
 
-resource "twingate_remote_network" "main" {
-  name = "${local.name_prefix}network"
-}
+module "stack" {
+  source = "../modules/twingate-stack"
 
-# certificate is write-only: it is never stored in state, and changing it forces
-# replacement.
-resource "twingate_x509_certificate_authority" "main" {
-  name        = "${local.name_prefix}ca"
-  certificate = tls_self_signed_cert.ca.cert_pem
-}
+  name_prefix = local.name_prefix
+  tg_network  = var.tg_network
 
-resource "twingate_gateway" "main" {
-  remote_network_id = twingate_remote_network.main.id
-  address           = "${local.gateway_ipv4}:${local.gateway_port}"
-  x509_ca_id        = twingate_x509_certificate_authority.main.id
+  # Every published address is a Docker DNS name, so there are no IP SANs.
+  cert_dns_names = local.cert_dns_names
 
-  # Do not change remote_network_id in place. The provider reads it from state on
-  # update, so the change silently no-ops and then drifts on every plan.
-}
-
-resource "twingate_connector" "main" {
-  remote_network_id = twingate_remote_network.main.id
-  name              = "${local.name_prefix}connector"
-}
-
-# Managed rather than ephemeral: the ephemeral variant re-mints tokens on every
-# plan, leaving the running Connector holding credentials Terraform has already
-# rotated away from.
-resource "twingate_connector_tokens" "main" {
-  connector_id = twingate_connector.main.id
-}
-
-data "twingate_groups" "by_name" {
-  for_each = toset(local.group_names)
-  name     = each.value
-
-  lifecycle {
-    postcondition {
-      condition     = length(self.groups) > 0
-      error_message = "No Twingate group named '${each.value}'. Check twingate.groups on the service."
-    }
-  }
+  request_headers = var.gateway_request_headers
+  gateway_image   = var.gateway_image
+  connector_image = var.connector_image
 }

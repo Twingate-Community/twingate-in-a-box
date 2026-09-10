@@ -1,13 +1,9 @@
 # Register a self signed CA with Twingate and issue a certificate for the Gateway.
-# The Client uses this to verify communication with the Gateway
-locals {
-  # NOTE: a change to any service address or alias regenerates the leaf, which requires
-  # replacing the Gateway container.
-  cert_dns_names = distinct(concat(
-    [for service in values(local.twingate_services) : service.address],
-    compact([for service in values(local.twingate_services) : service.alias]),
-  ))
-}
+# The Client uses this to verify communication with the Gateway.
+#
+# The names come from the caller, because only the caller knows what it publishes.
+# A Client validates the name it dialed, which is a Resource address or an alias,
+# so every one of them has to appear in cert_dns_names or cert_ip_addresses.
 
 resource "tls_private_key" "ca" {
   algorithm = "RSA"
@@ -18,7 +14,7 @@ resource "tls_self_signed_cert" "ca" {
   private_key_pem = tls_private_key.ca.private_key_pem
 
   subject {
-    common_name = "twingate-in-a-box-ca"
+    common_name = "${var.name_prefix}ca"
   }
 
   validity_period_hours = 8760
@@ -41,10 +37,14 @@ resource "tls_cert_request" "leaf" {
   private_key_pem = tls_private_key.leaf.private_key_pem
 
   subject {
-    common_name = "twingate-in-a-box-gateway"
+    common_name = "${var.name_prefix}gateway"
   }
 
-  dns_names = local.cert_dns_names
+  dns_names = var.cert_dns_names
+
+  # Separate from dns_names on purpose: no verifier will match an IP literal
+  # against a DNS SAN, so a Resource addressed by IP needs one of these instead.
+  ip_addresses = var.cert_ip_addresses
 }
 
 resource "tls_locally_signed_cert" "leaf" {
