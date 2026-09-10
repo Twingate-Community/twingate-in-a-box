@@ -1,0 +1,32 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+tg_api_token = "your-twingate-api-token"
+tg_network   = "yournetwork" # the <network> in <network>.twingate.com
+
+# The apps to publish. Leave it out and the demo app is the only thing published.
+# address is anything the Docker host can already reach: an LXC, a VM, another
+# container, a device on the LAN.
+#
+# services = {
+#   grafana = {
+#     address = "192.168.1.50"
+#     port    = 3000
+#     groups  = ["Everyone"]
+#     alias   = "grafana.lab.internal"
+#
+#     # Replaces gateway_request_headers for this one service rather than adding
+#     # to it. At most five: Twingate rejects a larger set atomically and then
+#     # stores none of them.
+#     headers = { "X-JWT-Assertion" = "{{jwt}}" }
+#   }
+#
+#   nas = {
+#     address = "192.168.1.20"
+#     port    = 5000
+#     groups  = ["Admin"]
+#     alias   = "nas.lab.internal"
+#   }
+# }
+
+# The echo app is useful for debugging identity injection, so it stays on by
+# default. Turn it off once you no longer need it.
+# demo_app = false
