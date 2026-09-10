@@ -11,6 +11,10 @@
 #
 # Never add port mappings. This is what `twingate.port` is for.
 
+# Pinned so the project does not take its name from the directory. Container names
+# feed the Prometheus targets below, and Terraform names its own containers to match.
+name: twingate-in-a-box
+
 networks:
   twingate:
     # Created by Terraform. Run terraform apply first.

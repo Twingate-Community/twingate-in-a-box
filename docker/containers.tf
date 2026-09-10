@@ -20,6 +20,16 @@ resource "docker_network" "box" {
   }
 
   lifecycle {
+    # ipam_config is a ForceNew set, and Docker fills in fields we never declare:
+    # a gateway address, an empty aux_address. Those come back on refresh, the
+    # configured element stops matching the stored one, and the network is
+    # replaced on every apply. That takes the Gateway with it, and then hangs on
+    # the way out because the apps are still attached.
+    #
+    # The subnet is fixed by design, so there is nothing here to track. Changing
+    # it means recreating the network by hand.
+    ignore_changes = [ipam_config]
+
     precondition {
       condition     = length(local.host_exposed) == 0
       error_message = "Compose services ${join(", ", local.host_exposed)} expose ports to the host. Ports reachable from the host can accept headers from any client."
