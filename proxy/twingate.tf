@@ -1,12 +1,6 @@
-# The Twingate side of the proxy: one Remote Network holding one Connector and
+# The Twingate side of the proxy. One Remote Network holding one Connector and
 # one Gateway, sharing the host's network namespace.
 locals {
-  # A Client validates the name it dialed, and no verifier will match an IP
-  # literal against a DNS SAN, so the published names are split by shape rather
-  # than listed together.
-  #
-  # NOTE: adding a service regenerates the leaf, which requires replacing the
-  # Gateway container and drops the other apps for a few seconds.
   cert_ip_addresses = distinct([
     for service in values(local.services) : service.address
     if can(cidrhost("${service.address}/32", 0))
