@@ -1,13 +1,34 @@
 # One Web App Resource per published service. This is where a service becomes
 # reachable through Twingate.
+locals {
+  # Groups named by any published service, looked up once each.
+  group_names = distinct(flatten([
+    for service in values(local.twingate_services) : service.group_names
+  ]))
+
+  group_ids = { for name, found in data.twingate_groups.by_name : name => found.groups[0].id }
+}
+
+data "twingate_groups" "by_name" {
+  for_each = toset(local.group_names)
+  name     = each.value
+
+  lifecycle {
+    postcondition {
+      condition     = length(self.groups) > 0
+      error_message = "No Twingate group named '${each.value}'. Check twingate.groups on the service."
+    }
+  }
+}
+
 resource "twingate_web_app_resource" "app" {
   for_each = local.twingate_services
 
   name              = each.value.display_name
   address           = each.value.address
   alias             = each.value.alias
-  gateway_id        = twingate_gateway.main.id
-  remote_network_id = twingate_remote_network.main.id
+  gateway_id        = module.stack.gateway_id
+  remote_network_id = module.stack.remote_network_id
 
   downstream = { port = 80 }
   upstream   = { port = each.value.upstream_port }
@@ -39,6 +60,13 @@ resource "twingate_web_app_resource" "app" {
     precondition {
       condition     = contains(local.service_networks[each.key], local.network_name)
       error_message = "Service '${each.key}' is not on the ${local.network_name} network, so the Gateway cannot resolve ${each.value.address}."
+    }
+
+    # A port on the host lets anything on the machine reach the app directly bypassing
+    # Twingate and breaking the secure environment.
+    precondition {
+      condition     = !contains(local.host_exposed, each.key)
+      error_message = "Service '${each.key}' exposes ports to the host. Ports reachable from the host can accept headers from any client."
     }
   }
 }

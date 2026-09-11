@@ -1,34 +1,10 @@
-# The box: the network everything joins, plus the two Twingate containers on it.
 locals {
   gateway_config = templatefile("${path.module}/templates/gateway-config.yaml.tftpl", {
     network         = var.tg_network
     port            = local.gateway_port
-    metrics_port    = local.metrics_port
-    request_headers = var.gateway_request_headers
+    metrics_port    = local.gateway_metrics_port
+    request_headers = var.request_headers
   })
-}
-
-# Not internal: the Gateway fetches JWKS at boot and the Connector needs to reach
-# Twingate. Inbound is what the box closes off, not outbound.
-resource "docker_network" "box" {
-  name       = local.network_name
-  driver     = "bridge"
-  attachable = true
-
-  ipam_config {
-    subnet = local.subnet
-  }
-
-  lifecycle {
-    # Updates to the Gateway cause the network to be replaced. This will hang due to containers still using the network.
-    # This keeps the network around between updates
-    ignore_changes = [ipam_config]
-
-    precondition {
-      condition     = length(local.host_exposed) == 0
-      error_message = "Compose services ${join(", ", local.host_exposed)} expose ports to the host. Ports reachable from the host can accept headers from any client."
-    }
-  }
 }
 
 resource "docker_image" "gateway" {
@@ -44,24 +20,28 @@ resource "docker_image" "connector" {
 }
 
 resource "docker_container" "gateway" {
-  name    = "${local.name_prefix}gateway"
+  name    = "${var.name_prefix}gateway"
   image   = docker_image.gateway.image_id
   restart = "unless-stopped"
 
   # The image ENTRYPOINT is already ["/gateway", "start"].
   command = ["--config", "/etc/gateway/config.yaml"]
 
-  networks_advanced {
-    name         = docker_network.box.name
-    ipv4_address = local.gateway_ipv4
+  # Either the box network at a fixed address, or the host's own namespace.
+  network_mode = var.host_network ? "host" : null
+
+  dynamic "networks_advanced" {
+    # skip this if on host network
+    for_each = var.host_network ? [] : [1]
+
+    content {
+      name         = docker_network.box[0].name
+      ipv4_address = local.gateway_ipv4
+    }
   }
 
-  # No ports block, on purpose. The Gateway is reachable only from inside this
-  # network, via the Connector.
-
   # Uploaded rather than mounted, which keeps the leaf private key off the host
-  # filesystem. owner and group must be 65532: the image is distroless nonroot, so
-  # a root-owned key is unreadable and the Gateway exits.
+  # filesystem.
   upload {
     file        = "/etc/gateway/config.yaml"
     content     = local.gateway_config
@@ -86,15 +66,12 @@ resource "docker_container" "gateway" {
     permissions = "0400"
   }
 
-  # Every upload field is ForceNew, so a config or certificate change replaces this
-  # container on its own. Do not add create_before_destroy: the new container
-  # cannot claim the Gateway address while the old one still holds it.
-
+  # The container must not boot before the Gateway exists in Twingate.
   depends_on = [twingate_gateway.main]
 }
 
 resource "docker_container" "connector" {
-  name    = "${local.name_prefix}connector"
+  name    = "${var.name_prefix}connector"
   image   = docker_image.connector.image_id
   restart = "unless-stopped"
 
@@ -105,10 +82,16 @@ resource "docker_container" "connector" {
     "TWINGATE_LABEL_DEPLOYED_BY=twingate-in-a-box",
 
     # Defaults to 0, which disables the metrics server entirely.
-    "TWINGATE_METRICS_PORT=${local.metrics_port}",
+    "TWINGATE_METRICS_PORT=${local.connector_metrics_port}",
   ]
 
-  networks_advanced {
-    name = docker_network.box.name
+  network_mode = var.host_network ? "host" : null
+
+  dynamic "networks_advanced" {
+    for_each = var.host_network ? [] : [1]
+
+    content {
+      name = docker_network.box[0].name
+    }
   }
 }

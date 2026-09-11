@@ -1,15 +1,10 @@
-# Define hard defaults for the box environment.
+# Define hard defaults for the box environment. Only change if you know what you are doing.
 locals {
   # Prefixes the objects this creates in Twingate, so they are recognizable in
   # an account that holds more than the box.
   name_prefix = "twingate-in-a-box-"
 
+  # The stack module creates this network and docker-compose.yaml joins it by
+  # name, so the string lives in three places and they have to agree.
   network_name = "twingate"
-  subnet       = "172.28.0.0/24"
-  gateway_ipv4 = "172.28.0.250"
-  gateway_port = 8443
-
-  # Served by the Gateway and the Connector both, on their own addresses.
-  # Unpublished, and nothing scrapes it yet.
-  metrics_port = 9090
 }

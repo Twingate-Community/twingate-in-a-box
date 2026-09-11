@@ -10,6 +10,10 @@ through so that opening a supported app signs you in with no password.
 Terraform owns the Twingate side and the network. Docker Compose owns the apps.
 Terraform reads `docker-compose.yaml` and registers all of the Twingate Resources for you.
 
+Everything here lives inside a box and the only way to add more services is through Docker. To put a Gateway in front of things you already run
+elsewhere, see [`../proxy`](../proxy). Both share
+[`../modules/twingate-stack`](../modules/twingate-stack).
+
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
 > the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
