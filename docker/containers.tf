@@ -20,6 +20,10 @@ resource "docker_network" "box" {
   }
 
   lifecycle {
+    # Updates to the Gateway cause the network to be replaced. This will hang due to containers still using the network.
+    # This keeps the network around between updates
+    ignore_changes = [ipam_config]
+
     precondition {
       condition     = length(local.host_exposed) == 0
       error_message = "Compose services ${join(", ", local.host_exposed)} expose ports to the host. Ports reachable from the host can accept headers from any client."
