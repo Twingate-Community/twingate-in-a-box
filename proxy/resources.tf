@@ -2,8 +2,7 @@
 # reachable through Twingate. Terraform does not create, start or configure the
 # apps themselves.
 locals {
-  # The demo app publishes alongside your own rather than instead of them. A key
-  # in var.services wins, so "echo" can be reclaimed.
+  # Merge the demo services with the user-defined services. User-defined services take precedence.
   services = merge(local.demo_services, var.services)
 
   web_apps = {
@@ -45,9 +44,7 @@ resource "twingate_web_app_resource" "app" {
   gateway_id        = module.stack.gateway_id
   remote_network_id = module.stack.remote_network_id
 
-  # downstream is the Client to Gateway hop and has to be 80. TLS terminates
-  # there, so the browser uses http://. A downstream port of 443 fails with
-  # "CONNECT port 443 does not match token downstream port 80".
+  # Gateway currently only supports HTTP on the downstream port.
   downstream = { port = 80 }
   upstream   = { port = each.value.port }
 
