@@ -1,6 +1,6 @@
 # Twingate in a Box
 
-A complete Twingate deployment that runs on your laptop. Docker holds the Remote Network,
+A complete Twingate deployment that runs on your dev machine. Docker holds the Remote Network,
 the Connector and the Gateway, so there is no cloud infrastructure to stand up or tear
 down.
 
@@ -14,5 +14,4 @@ cd docker
 ## Support
 
 - For general issues using this project please open a GitHub issue.
-- For account specific issues, please visit the [Twingate forum](https://forum.twingate.com/)
-  or open a [support ticket](https://help.twingate.com/)
+- For account specific issues, please visit the [Twingate Subreddit](https://reddit.com/r/twingate)
