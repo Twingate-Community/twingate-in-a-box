@@ -20,14 +20,8 @@ resource "docker_network" "box" {
   }
 
   lifecycle {
-    # ipam_config is a ForceNew set, and Docker fills in fields we never declare:
-    # a gateway address, an empty aux_address. Those come back on refresh, the
-    # configured element stops matching the stored one, and the network is
-    # replaced on every apply. That takes the Gateway with it, and then hangs on
-    # the way out because the apps are still attached.
-    #
-    # The subnet is fixed by design, so there is nothing here to track. Changing
-    # it means recreating the network by hand.
+    # Updates to the Gateway cause the network to be replaced. This will hang due to containers still using the network.
+    # This keeps the network around between updates
     ignore_changes = [ipam_config]
 
     precondition {
