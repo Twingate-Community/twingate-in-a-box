@@ -1,33 +1,34 @@
 # Twingate in a Box
 
-A complete Twingate deployment that runs on your laptop. Docker holds the Remote
-Network, the Connector and the Gateway, so there is no cloud infrastructure to stand up
-or tear down.
+A complete Twingate deployment that runs on your dev machine. Test out the full power of Twingate
+in Docker and avoid paying for cloud infrastructure or spinning up a test Kubernetes environment.
 
 The Connector provides Zero Trust network access to anything you define as a Resource.
 The Gateway adds identity-aware access for web apps, passing the caller's identity
 through so that opening a supported app signs you in with no password.
 
-Terraform owns the Twingate side and the network. Docker Compose owns the apps, and
-Terraform only reads `docker-compose.yaml` to find which ones to publish.
+Terraform owns the Twingate side and the network. Docker Compose owns the apps.
+Terraform reads `docker-compose.yaml` and registers all of the Twingate Resources for you.
 
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
 > the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
 
-## The box is closed to inbound traffic
+## The environment is closed to inbound traffic by design
 
 The Gateway registers at `172.28.0.250:8443`, an address on a Docker bridge network that
 is not reachable from the host or the internet. Every Client arrives through the
 Connector, so the Gateway never sees a packet Twingate has not already authenticated and
 authorized.
 
-Outbound is open, and meant to be. The Gateway fetches JWKS at boot, the Connector
-reaches Twingate, and apps can call whatever they need.
+Outbound is open, and meant to be. The Gateway can fetch your tenant's JWKS at boot, the Connector
+can reach Twingate, and your apps can call whatever they need.
 
 This is why no published service declares `ports:`, and why Terraform refuses the plan
 if one does. A port on the host lets anything on the machine reach the app directly and
 hand it a forged `X-Twingate-User`.
+
+This is the standard approach for all Twingate deployments regardless of if they are local, or in the cloud.
 
 ## Requirements
 
@@ -40,7 +41,7 @@ hand it a forged `X-Twingate-User`.
 ```bash
 cd docker
 cp terraform.tfvars.example terraform.tfvars   # add tg_api_token and tg_network
-cp .env.example .env                           # add your network slug for Compose
+cp .env.example .env                           # add your network name for Grafana's JWKS access
 terraform init
 terraform apply
 docker compose up -d
@@ -55,7 +56,7 @@ healthcheck, so check that it stayed up:
 docker logs twingate-in-a-box-gateway
 ```
 
-Give the Connector about 30 seconds to register, then connect the Twingate Client and
+Give the Connector about 30 seconds to register, then connect the [Twingate Client](https://www.twingate.com/download) and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
 headers at `/headers`, which shows identity propagation working end to end.
 
@@ -63,30 +64,22 @@ headers at `/headers`, which shows identity propagation working end to end.
 
 Open WebUI and Grafana both sign you in without a login form, by two different routes.
 Open WebUI reads the username straight out of `X-Twingate-User` and trusts it. Grafana
-takes the whole Twingate token from `X-JWT-Assertion` and checks its signature against
-Twingate's public keys. A forged token then fails on cryptography rather than on where it
-came from. For a real app, copy Grafana.
+takes the whole Twingate Gateway Access Token (GAT) from `X-JWT-Assertion` and checks its signature against
+your tenant's public keys. A forged token then fails on cryptography rather than on where it
+came from. Using the GAT is the recommended approach as it is the most secure.
 
 Each is set per Resource with `twingate.header.*`, since the two apps want different
-headers. Grafana goes further and maps the group out of the token to a Grafana role, so
-Admin membership decides what you can do once you are in. Drop that mapping and Grafana
-signs everyone in as a Viewer.
+headers. Grafana goes further and maps the user's Twingate Group assignments in the GAT to a Grafana role.
+This allows for automatic group assignment via Twingate rather than needing to also configure Grafana
+for each user. The default behavior is all users receive the "Viewer" role on login.
 
-Uptime Kuma and IT-Tools do none of that. They are the plain reverse proxy case: a name
-instead of an IP and a port, with Twingate deciding who reaches it. Uptime Kuma keeps its
-own login and Twingate leaves it alone. IT-Tools has no login at all, and publishing it is
-only reasonable because nothing binds a host port and there is no route in except the
-Gateway. The Gateway still adds the account-wide `X-Twingate-User` and `X-Twingate-Groups`
-to their requests, from `var.gateway_request_headers`, and neither app reads them.
-
-Prometheus scrapes the Gateway and the Connector. It is not published, because Grafana
-reaches it over the box network and nothing else needs to.
+Uptime Kuma and IT-Tools are examples of apps that do not support login via third party JWT or plaintext header.
+The Gateway can still provide value for these services and act as a reverse proxy. By configuring an
+alias for the Resource, users can access the service via this alias and will no longer need to remember IP addresses
+and the associated ports for these services.
 
 Grafana comes with the Prometheus datasource and two dashboards already loaded, from
-`dashboards/`. The Connector one is from
-[Twingate-Community/dashboards](https://github.com/Twingate-Community/dashboards). The
-Gateway one covers request rate and status, Client and upstream latency, authentication
-attempts, throughput, and transport mix. Edits you make in the UI stick until the
+`dashboards/`. Edits you make in the UI stick until the
 container is recreated, so copy anything you want to keep back into `dashboards/`.
 
 ## Publishing an app
@@ -102,7 +95,7 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
-      twingate.groups: "Everyone"
+      twingate.groups: "MyGroup"
 ```
 
 Then run `terraform apply && docker compose up -d`. Docker resolves its address,
@@ -119,5 +112,4 @@ See `docker-compose.yaml` for the full label list and `variables.tf` for the inp
 ## Support
 
 - For general issues using this project please open a GitHub issue.
-- For account specific issues, please visit the [Twingate forum](https://forum.twingate.com/)
-  or open a [support ticket](https://help.twingate.com/)
+- For account specific issues, please visit the [Twingate Subreddit](https://reddit.com/r/twingate)
