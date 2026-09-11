@@ -14,7 +14,7 @@ output "network_name" {
 }
 
 output "ca_cert_pem" {
-  description = "The CA the Gateway's certificate chains to. Not secret: dump it if you want a browser to trust the Gateway directly."
+  description = "The CA the Gateway's certificate chains to."
   value       = tls_self_signed_cert.ca.cert_pem
 }
 

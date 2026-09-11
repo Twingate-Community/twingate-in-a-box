@@ -18,7 +18,3 @@ terraform {
     }
   }
 }
-
-# No provider blocks on purpose. Both configurations are inherited from whichever
-# root calls this, and a module that configures its own providers cannot be used
-# with count or for_each.

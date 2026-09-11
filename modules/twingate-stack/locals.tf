@@ -1,5 +1,4 @@
-# Hard defaults for the stack's own networking. Fixed rather than configurable:
-# nothing outside this module needs an opinion about them.
+# Hard defaults for the stack's own networking. Fixed rather than configurable.
 locals {
   network_name = "twingate"
   subnet       = "172.28.0.0/24"
@@ -14,6 +13,6 @@ locals {
 
   # On a bridge the Connector dials a fixed address inside a network nothing else
   # can reach. Sharing the host namespace there is no such address, so it dials
-  # loopback. That is still a hop nothing off the host can make.
+  # loopback.
   gateway_address = var.host_network ? "127.0.0.1:${local.gateway_port}" : "${local.gateway_ipv4}:${local.gateway_port}"
 }

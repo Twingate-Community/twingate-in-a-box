@@ -27,12 +27,11 @@ resource "docker_container" "gateway" {
   # The image ENTRYPOINT is already ["/gateway", "start"].
   command = ["--config", "/etc/gateway/config.yaml"]
 
-  # Either the box network at a fixed address, or the host's own namespace. The
-  # two are mutually exclusive and the daemon only rejects the combination at
-  # apply time, so they are driven from one variable.
+  # Either the box network at a fixed address, or the host's own namespace.
   network_mode = var.host_network ? "host" : null
 
   dynamic "networks_advanced" {
+    # skip this if on host network
     for_each = var.host_network ? [] : [1]
 
     content {
@@ -41,14 +40,8 @@ resource "docker_container" "gateway" {
     }
   }
 
-  # No ports block, on purpose. On the box network that leaves the Gateway
-  # reachable only through the Connector. host_network gives that up: the process
-  # binds its own ports on every host interface and the config has no
-  # listen-address key to narrow it.
-
   # Uploaded rather than mounted, which keeps the leaf private key off the host
-  # filesystem. owner and group must be 65532: the image is distroless nonroot, so
-  # a root-owned key is unreadable and the Gateway exits.
+  # filesystem.
   upload {
     file        = "/etc/gateway/config.yaml"
     content     = local.gateway_config
@@ -72,10 +65,6 @@ resource "docker_container" "gateway" {
     group       = "65532"
     permissions = "0400"
   }
-
-  # Every upload field is ForceNew, so a config or certificate change replaces this
-  # container on its own. Do not add create_before_destroy: the new container
-  # cannot claim the address the Gateway registered at while the old one holds it.
 
   # The container must not boot before the Gateway exists in Twingate.
   depends_on = [twingate_gateway.main]

@@ -1,9 +1,5 @@
 # Register a self signed CA with Twingate and issue a certificate for the Gateway.
 # The Client uses this to verify communication with the Gateway.
-#
-# The names come from the caller, because only the caller knows what it publishes.
-# A Client validates the name it dialed, which is a Resource address or an alias,
-# so every one of them has to appear in cert_dns_names or cert_ip_addresses.
 
 resource "tls_private_key" "ca" {
   algorithm = "RSA"
@@ -40,10 +36,7 @@ resource "tls_cert_request" "leaf" {
     common_name = "${var.name_prefix}gateway"
   }
 
-  dns_names = var.cert_dns_names
-
-  # Separate from dns_names on purpose: no verifier will match an IP literal
-  # against a DNS SAN, so a Resource addressed by IP needs one of these instead.
+  dns_names    = var.cert_dns_names
   ip_addresses = var.cert_ip_addresses
 }
 
