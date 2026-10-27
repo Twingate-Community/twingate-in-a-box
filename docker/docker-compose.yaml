@@ -5,8 +5,14 @@
 # Configure the following labels to control how the Gateway interacts with the service:
 # - `twingate.port`: REQUIRED - the port the service listens on
 # - `twingate.groups`: REQUIRED - comma-separated list of groups allowed to access the service
-# - `twingate.alias`: optional hostname alias for the service
+# - `twingate.alias`: optional hostname, defaults to <service>.<wildcard_domain>. The
+#   wildcard certificate covers the default, so a value outside that domain means the
+#   certificate is reissued and the Gateway restarts.
 # - `twingate.name`: optional Resource name in Twingate, defaults to the service name
+# - `twingate.https`: optional, defaults to "true". The Gateway terminates TLS and the
+#   app is published over https. Set "false" to publish it over plain http instead.
+# - `twingate.tls`: optional, defaults to "NONE" - how the Gateway reaches the app.
+#   Use VERIFY_FULL, VERIFY_CA or INSECURE for a backend that serves TLS itself.
 # - `twingate.header.<Header-Name>`: optional headers to inject into requests to the service
 #
 # Never add port mappings. This is what `twingate.port` is for.

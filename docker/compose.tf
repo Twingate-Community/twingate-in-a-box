@@ -19,11 +19,25 @@ locals {
     for service_name, labels in local.service_labels : service_name => {
       # Compose registers every service under <service>.<network> in Docker's
       # embedded DNS, so this resolves without any config in the compose file.
-      address       = "${service_name}.${local.network_name}"
-      alias         = try(labels["twingate.alias"], null)
+      address = "${service_name}.${local.network_name}"
+
+      # What users type. Defaults under the wildcard so the certificate already
+      # covers it. An explicit twingate.alias outside that domain still works,
+      # but puts this service back on the certificate.
+      alias = coalesce(try(labels["twingate.alias"], null), "${service_name}.${var.wildcard_domain}")
+
+      # Serve this app over HTTPS, which the wildcard certificate covers. Set
+      # twingate.https=false to publish it over plain HTTP instead.
+      https = try(tobool(labels["twingate.https"]), true)
+
       upstream_port = tonumber(try(labels["twingate.port"], 0))
-      display_name  = try(labels["twingate.name"], service_name)
-      group_names   = try(split(",", labels["twingate.groups"]), [])
+
+      # How the Gateway reaches the app. Apps here speak plain HTTP, so the
+      # default is NONE. Set twingate.tls for a backend that serves TLS.
+      upstream_tls_mode = try(labels["twingate.tls"], "NONE")
+
+      display_name = try(labels["twingate.name"], service_name)
+      group_names  = try(split(",", labels["twingate.groups"]), [])
 
       headers = {
         for label, value in labels : replace(label, "twingate.header.", "") => value

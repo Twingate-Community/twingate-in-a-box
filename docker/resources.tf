@@ -30,8 +30,16 @@ resource "twingate_web_app_resource" "app" {
   gateway_id        = module.stack.gateway_id
   remote_network_id = module.stack.remote_network_id
 
-  downstream = { port = 80 }
-  upstream   = { port = each.value.upstream_port }
+  # With https on, the Gateway terminates TLS using the wildcard certificate.
+  downstream = {
+    port     = each.value.https ? 443 : 80
+    tls_mode = each.value.https ? "TLS13" : "NONE"
+  }
+
+  upstream = {
+    port     = each.value.upstream_port
+    tls_mode = each.value.upstream_tls_mode
+  }
 
   request_header_rewrites = length(each.value.headers) > 0 ? each.value.headers : null
 

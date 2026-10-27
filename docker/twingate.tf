@@ -1,12 +1,13 @@
 # The Twingate side of the box. One Remote Network holding one Connector and one
 # Gateway, on a bridge that all Docker services join.
 locals {
-  # NOTE: a change to any service address or alias forces a regeneration of the certificate.
-  # This will cause the Gateway to restart, disrupting any active connections.
-  cert_dns_names = distinct(concat(
-    [for service in values(local.twingate_services) : service.address],
-    compact([for service in values(local.twingate_services) : service.alias]),
-  ))
+  # Anything under the wildcard is already on the certificate. Only an alias
+  # pointed somewhere else needs its own SAN, and only that will reissue the
+  # certificate and restart the Gateway.
+  cert_dns_names = distinct([
+    for service in values(local.twingate_services) : service.alias
+    if !endswith(service.alias, ".${var.wildcard_domain}")
+  ])
 }
 
 module "stack" {
@@ -15,8 +16,8 @@ module "stack" {
   name_prefix = local.name_prefix
   tg_network  = var.tg_network
 
-  # Every published address is a Docker DNS name.
-  cert_dns_names = local.cert_dns_names
+  wildcard_domain = var.wildcard_domain
+  cert_dns_names  = local.cert_dns_names
 
   request_headers = var.gateway_request_headers
   gateway_image   = var.gateway_image
