@@ -1,15 +1,14 @@
 # The Twingate side of the proxy. One Remote Network holding one Connector and
 # one Gateway, sharing the host's network namespace.
 locals {
-  cert_ip_addresses = distinct([
-    for service in values(local.services) : service.address
-    if can(cidrhost("${service.address}/32", 0))
+  # Anything under the wildcard is already on the certificate. Only an alias
+  # pointed somewhere else needs its own SAN, and only that will reissue the
+  # certificate and restart the Gateway. Addresses need no coverage: they are
+  # how the Gateway reaches the app, not what the browser validates.
+  cert_dns_names = distinct([
+    for app in values(local.web_apps) : app.published_as
+    if !endswith(app.published_as, ".${var.wildcard_domain}")
   ])
-
-  cert_dns_names = distinct(concat(
-    [for service in values(local.services) : service.address if !can(cidrhost("${service.address}/32", 0))],
-    compact([for service in values(local.services) : service.alias]),
-  ))
 }
 
 module "stack" {
@@ -23,8 +22,8 @@ module "stack" {
   # the host reaches: LAN addresses, VMs, LXCs, other Docker bridges.
   host_network = true
 
-  cert_dns_names    = local.cert_dns_names
-  cert_ip_addresses = local.cert_ip_addresses
+  wildcard_domain = var.wildcard_domain
+  cert_dns_names  = local.cert_dns_names
 
   request_headers = var.gateway_request_headers
   gateway_image   = var.gateway_image

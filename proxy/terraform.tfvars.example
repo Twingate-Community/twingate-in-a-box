@@ -4,12 +4,15 @@ tg_network   = "yournetwork" # the <network> in <network>.twingate.com
 
 # The apps to publish. Leave it out and the demo app is the only thing published.
 #
+# Each key becomes the published hostname: grafana below is reached at
+# https://grafana.box.internal. The Gateway's wildcard certificate already covers
+# that, so adding or removing services never restarts it.
+#
 # services = {
 #   grafana = {
 #     address = "192.168.1.50" # private IP address of the service
 #     port    = 3000
 #     groups  = ["Everyone"]
-#     alias   = "grafana.lab.internal"
 #
 #     # Replaces gateway_request_headers for this one service rather than adding
 #     # to it. At most five entries.
@@ -20,9 +23,24 @@ tg_network   = "yournetwork" # the <network> in <network>.twingate.com
 #     address = "192.168.1.20"
 #     port    = 5000
 #     groups  = ["Admin"]
-#     alias   = "nas.lab.internal"
+#
+#     # The app serves TLS itself, with a certificate this CA did not issue.
+#     tls_mode = "INSECURE"
+#   }
+#
+#   legacy = {
+#     address = "192.168.1.30"
+#     port    = 8080
+#     groups  = ["Admin"]
+#
+#     # Publish over plain http instead of https.
+#     https = false
 #   }
 # }
+
+# The domain published apps are addressed under, and what the Gateway's wildcard
+# certificate covers.
+# wildcard_domain = "box.internal"
 
 # The echo app is useful for debugging identity injection, so it stays on by
 # default. Turn it off once you no longer need it.
