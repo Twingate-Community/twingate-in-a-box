@@ -20,14 +20,20 @@ variable "request_headers" {
   type        = map(string)
 }
 
+variable "wildcard_domain" {
+  description = "Domain the Gateway certificate wildcards over. Every published app gets an alias under it, so adding or removing a service never regenerates the certificate."
+  type        = string
+  default     = "box.internal"
+}
+
 variable "cert_dns_names" {
-  description = "DNS SANs for Resource aliases."
+  description = "Extra DNS SANs, on top of the wildcard. Only needed for an alias outside wildcard_domain, which puts certificate regeneration back on the table."
   type        = list(string)
   default     = []
 }
 
 variable "cert_ip_addresses" {
-  description = "IP SANs, for Resources addressed by IP."
+  description = "IP SANs, for Resources reached by IP rather than by alias."
   type        = list(string)
   default     = []
 }

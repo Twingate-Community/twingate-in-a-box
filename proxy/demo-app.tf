@@ -17,8 +17,14 @@ locals {
       address = local.demo_ipv4
       port    = local.demo_port
       groups  = ["Everyone"]
-      alias   = "echo.lab.internal"
-      name    = null
+
+      # Null so it picks up the default alias under wildcard_domain, which the
+      # certificate already covers.
+      alias = null
+      name  = null
+
+      https    = true
+      tls_mode = "NONE"
 
       # Per-Resource, so only this service sees the token. The Gateway-wide
       # headers deliberately omit it. /headers renders the full token.

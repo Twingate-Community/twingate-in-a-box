@@ -36,7 +36,9 @@ resource "tls_cert_request" "leaf" {
     common_name = "${var.name_prefix}gateway"
   }
 
-  dns_names    = var.cert_dns_names
+  # One wildcard covers every alias, so the service list can change without
+  # reissuing this certificate and restarting the Gateway.
+  dns_names    = concat(["*.${var.wildcard_domain}"], var.cert_dns_names)
   ip_addresses = var.cert_ip_addresses
 }
 

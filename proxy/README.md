@@ -12,6 +12,11 @@ Terraform reads them out of a compose file. Both share
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
 > the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
+>
+> Apps are served over HTTPS, which means installing the proxy CA into your trust store.
+> That tells your machine to trust anything the CA signs, and it is not name-constrained,
+> so whoever holds that private key could sign for any domain. Keep state private, treat
+> this as a lab tool, and remove the CA when you are finished.
 
 ## What host networking security considerations
 
@@ -46,6 +51,16 @@ healthcheck, so check that it stayed up:
 docker logs twingate-proxy-gateway
 ```
 
+Apps are published over HTTPS, so install the proxy CA before opening one. Terraform
+writes it to `ca.pem` and prints the commands for each OS:
+
+```bash
+terraform output ca_cert_install
+```
+
+Firefox keeps its own trust store, so import `ca.pem` there separately if you use it. The
+same output has the removal command for when you are done.
+
 Give the Connector about 30 seconds to register, then connect the [Twingate Client](https://www.twingate.com/download) and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
 headers at `/headers`, which shows identity propagation working end to end.
@@ -60,17 +75,23 @@ services = {
     address = "192.168.1.50"
     port    = 3000
     groups  = ["Everyone"]
-    alias   = "grafana.lab.internal"
   }
 }
 ```
 
-`address` is what the Gateway dials. `alias` is the name you type. Without one you would be
-browsing to `http://192.168.1.50:3000` instead of `http://grafana.lab.internal`. Both end up on the
-Gateway's certificate, an IP as an IP SAN and an alias as a DNS SAN.
+`address` is what the Gateway dials and never needs to be a name you can resolve. The name
+you type comes from the map key: this one is published at `https://grafana.box.internal`,
+so you never have to remember the IP and port. Set `alias` to override that name.
 
-Adding a service reissues that certificate, so Terraform replaces the Gateway container and
-the other apps drop for a few seconds while the new container spins up.
+The Gateway's certificate is a wildcard over `box.internal`, so it already covers every
+name derived this way. Adding or removing a service leaves the certificate alone and the
+Gateway keeps running, which means the other apps stay up. The one exception is an `alias`
+pointing outside `box.internal`: that name has to be added to the certificate, so the
+Gateway is replaced and everything drops for a few seconds.
+
+Two optional fields control TLS. `https = false` publishes over plain http instead. If the
+app serves TLS itself rather than plain http, set `tls_mode` to `VERIFY_FULL`, `VERIFY_CA`
+or `INSECURE` so the Gateway knows how to reach it.
 
 A `headers` map injects headers into requests to that one service, and **replaces** the global
 `gateway_request_headers` for it rather than adding to them. The value may contain a single
@@ -82,7 +103,7 @@ See `variables.tf` for the full list of inputs.
 ## The demo app
 
 `demo-app.tf` runs an echo server on its own bridge and publishes it at
-`http://echo.lab.internal`. It renders the request it received at `/headers`, which works
+`https://echo.box.internal`. It renders the request it received at `/headers`, which works
 really well as a debugging tool. Keeping this app up next to your existing apps makes it easy
 to see if the Gateway isn't injecting headers correctly vs the target app not reading them correctly.
 Set `demo_app = false` to remove it.

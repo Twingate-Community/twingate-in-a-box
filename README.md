@@ -12,7 +12,7 @@ They differ in where the apps live and how Terraform learns about them.
 | --- | --- | --- |
 | The apps | run in the box, from its own `docker-compose.yaml` | already run somewhere else |
 | Discovery | parses `twingate.*` labels off the compose file | an explicit `services` map |
-| Addressing | Docker DNS names, `<service>.twingate` | private IPs the host can reach |
+| Addressing | `https://<service>.box.internal` | `https://<name>.box.internal` |
 | Networking | a bridge Terraform creates and Compose joins | the host's own namespace |
 | Good for | seeing the whole thing work on a dev machine | putting a Gateway in front of a homelab |
 
@@ -26,6 +26,12 @@ Gateway and the Connector. The only structural difference between them is the
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
 > the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
+>
+> Apps are served over HTTPS, which means installing the box CA into your trust store.
+> That tells your machine to trust anything the CA signs, and it is not name-constrained,
+> so whoever holds that private key could sign for any domain. Keep state private, treat
+> this as a lab tool, and remove the CA when you are finished. Each deployment's README
+> has the install and removal commands.
 
 ## Requirements
 

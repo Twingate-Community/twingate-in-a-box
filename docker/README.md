@@ -17,6 +17,11 @@ elsewhere, see [`../proxy`](../proxy). Both share
 > **Warning:** Terraform state holds the CA private key, the Gateway's private key and
 > the Connector tokens in plaintext. `.gitignore` covers state and `terraform.tfvars`.
 > Do not commit them.
+>
+> Apps are served over HTTPS, which means installing the box CA into your trust store.
+> That tells your machine to trust anything the CA signs, and it is not name-constrained,
+> so whoever holds that private key could sign for any domain. Keep state private, treat
+> this as a lab tool, and remove the CA when you are finished.
 
 ## The environment is closed to inbound traffic by design
 
@@ -59,6 +64,16 @@ healthcheck, so check that it stayed up:
 ```bash
 docker logs twingate-in-a-box-gateway
 ```
+
+Apps are published over HTTPS, so install the box CA before opening one. Terraform writes
+it to `ca.pem` and prints the commands for each OS:
+
+```bash
+terraform output ca_cert_install
+```
+
+Firefox keeps its own trust store, so import `ca.pem` there separately if you use it. The
+same output has the removal command for when you are done.
 
 Give the Connector about 30 seconds to register, then connect the [Twingate Client](https://www.twingate.com/download) and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
@@ -103,8 +118,13 @@ services:
 ```
 
 Then run `terraform apply && docker compose up -d`. Docker resolves its address,
-`myapp.twingate`, on its own. Adding a service changes the certificate, so Terraform
-replaces the Gateway container and the other apps drop for a few seconds.
+`myapp.twingate`, on its own, and the app is published at `https://myapp.box.internal`.
+
+The Gateway's certificate is a wildcard over `box.internal`, so it already covers that
+name. Adding or removing a service leaves the certificate alone and the Gateway keeps
+running, which means the other apps stay up. The one exception is a `twingate.alias`
+pointing outside `box.internal`: that name has to be added to the certificate, so the
+Gateway is replaced and everything drops for a few seconds.
 
 A `twingate.header.<Name>` label injects a header into requests to that one service. The
 value may contain a single `{{key}}` from `jwt`, `username`, `groups`,

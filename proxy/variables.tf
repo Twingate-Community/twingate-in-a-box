@@ -18,6 +18,15 @@ variable "services" {
     groups  = list(string)
     alias   = optional(string)
     name    = optional(string)
+
+    # Serve over HTTPS, which the wildcard certificate covers. Set false to
+    # publish over plain HTTP instead.
+    https = optional(bool, true)
+
+    # How the Gateway reaches the app. NONE for a plain HTTP backend, or one of
+    # VERIFY_FULL, VERIFY_CA, INSECURE for one that serves TLS.
+    tls_mode = optional(string, "NONE")
+
     headers = optional(map(string), {})
   }))
 
@@ -32,10 +41,16 @@ variable "demo_app" {
   default     = true
 }
 
+variable "wildcard_domain" {
+  description = "Domain published apps are addressed under. One wildcard certificate covers it, so adding or removing a service never reissues the certificate or restarts the Gateway."
+  type        = string
+  default     = "box.internal"
+}
+
 variable "gateway_image" {
   description = "Gateway image."
   type        = string
-  default     = "ghcr.io/twingate/gateway:1.1.0"
+  default     = "ghcr.io/twingate/gateway:2.0.0"
 }
 
 variable "connector_image" {
