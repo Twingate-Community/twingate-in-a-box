@@ -11,5 +11,13 @@ tf.plan
 # Exported CA cert, if you dump it for a browser
 *.pem
 
+# SSH CA public key, written by terraform apply for Compose to mount
+ssh-ca.pub
+
+# Replayed SSH sessions. They hold everything typed and shown in the session.
+*.cast
+
 # Holds your network slug. Compose reads it, and so does Terraform.
 .env
+
+.DS_Store
