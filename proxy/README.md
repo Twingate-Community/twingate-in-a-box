@@ -52,14 +52,33 @@ docker logs twingate-proxy-gateway
 ```
 
 Apps are published over HTTPS, so install the proxy CA before opening one. Terraform
-writes it to `ca.pem` and prints the commands for each OS:
+writes it to `ca.pem`. From this directory:
 
 ```bash
-terraform output ca_cert_install
+# macOS
+sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ca.pem
+
+# Linux (update-ca-certificates only reads files ending in .crt)
+sudo cp ca.pem /usr/local/share/ca-certificates/twingate-proxy-ca.crt && sudo update-ca-certificates
+
+# Windows, from an elevated prompt
+certutil -addstore -f Root ca.pem
 ```
 
-Firefox keeps its own trust store, so import `ca.pem` there separately if you use it. The
-same output has the removal command for when you are done.
+Firefox keeps its own trust store, so import `ca.pem` there separately if you use it.
+
+Remove it when you are done:
+
+```bash
+# macOS
+sudo security delete-certificate -c twingate-proxy-ca /Library/Keychains/System.keychain
+
+# Linux
+sudo rm /usr/local/share/ca-certificates/twingate-proxy-ca.crt && sudo update-ca-certificates --fresh
+
+# Windows, from an elevated prompt
+certutil -delstore Root "twingate-proxy-ca"
+```
 
 Give the Connector about 30 seconds to register, then connect the [Twingate Client](https://www.twingate.com/download) and
 open one of the `app_urls` outputs. Start with the echo app. It renders the injected
