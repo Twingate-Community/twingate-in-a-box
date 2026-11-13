@@ -13,3 +13,19 @@ tls:
 # Injected into every proxied request.
 webApp:
   requestHeaders: ${jsonencode(request_headers)}
+
+ssh:
+  gateway:
+    # Every session logs in upstream as this account.
+    username: ${ssh_username}
+    key:
+      type: ed25519
+    # Presented to SSH clients.
+    hostCertificate:
+      ttl: 24h
+    # Presented to SSH servers. Minted per connection, so it can be short.
+    userCertificate:
+      ttl: 5m
+  ca:
+    local:
+      privateKeyFile: /etc/gateway/ssh-ca.key

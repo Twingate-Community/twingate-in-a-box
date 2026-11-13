@@ -9,12 +9,6 @@ variable "tg_network" {
   type        = string
 }
 
-variable "wildcard_domain" {
-  description = "Domain published apps are addressed under. One wildcard certificate covers it, so adding or removing a service never reissues the certificate or restarts the Gateway."
-  type        = string
-  default     = "box.internal"
-}
-
 variable "gateway_image" {
   description = "Gateway image."
   type        = string

@@ -1,0 +1,13 @@
+# No passwords and no authorized_keys, so the only way in is a certificate signed
+# by the SSH CA. sshd also checks that the login name is one of the certificate's
+# principals, and the Gateway only ever puts gateway there.
+
+# Generated when the image is built. See Dockerfile.
+HostKey /etc/ssh/ssh_host_ed25519_key
+
+TrustedUserCAKeys /etc/ssh/twingate-ca.pub
+AuthorizedKeysFile none
+
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no

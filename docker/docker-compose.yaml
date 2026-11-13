@@ -3,11 +3,13 @@
 #
 # To publish a service, assign it to the `twingate` network and add `twingate.enable: "true"`
 # Configure the following labels to control how the Gateway interacts with the service:
-# - `twingate.port`: REQUIRED - the port the service listens on
+# - `twingate.port`: REQUIRED for web apps - the port the service listens on. SSH defaults to 22.
 # - `twingate.groups`: REQUIRED - comma-separated list of groups allowed to access the service
-# - `twingate.alias`: optional hostname, defaults to <service>.<wildcard_domain>. The
-#   wildcard certificate covers the default, so a value outside that domain means the
-#   certificate is reissued and the Gateway restarts.
+# - `twingate.protocol`: optional, "web" (default) or "ssh". The https, tls and header
+#   labels below only apply to web apps.
+# - `twingate.alias`: optional second hostname. Every service is already reachable as
+#   <service>.box.internal, which the wildcard certificate covers. An alias outside that
+#   domain means the certificate is reissued and the Gateway restarts.
 # - `twingate.name`: optional Resource name in Twingate, defaults to the service name
 # - `twingate.https`: optional, defaults to "true". The Gateway terminates TLS and the
 #   app is published over https. Set "false" to publish it over plain http instead.
@@ -23,7 +25,10 @@ name: twingate-in-a-box
 
 networks:
   twingate:
-    # Created by Terraform. Run terraform apply first.
+    # Created by Terraform. Run terraform apply first. Docker DNS answers each
+    # service on it as <service>.box.internal, which is how every service gets its
+    # published name. Must match local.domain in locals.tf.
+    name: box.internal
     external: true
 
 volumes:
@@ -66,6 +71,10 @@ configs:
           allowUiUpdates: true
           options:
             path: /etc/dashboards
+
+  # Written by terraform apply. The public half of the SSH CA, not a secret.
+  ssh-ca:
+    file: ./ssh-ca.pub
 
 services:
   # Open WebUI, using its Trusted Header SSO. The Gateway injects the identity
@@ -167,6 +176,24 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3001"
+      twingate.groups: "Everyone"
+
+  # An SSH server with no keys or passwords to manage. Connect with
+  # `ssh ssh.box.internal`: the Gateway takes the session and logs in here as
+  # gateway, with a five-minute certificate it signs on the spot.
+  # The server only trusts the SSH CA. See ssh/ for how it is built.
+  ssh:
+    build: ./ssh
+    hostname: ssh
+    restart: unless-stopped
+    configs:
+      - source: ssh-ca
+        target: /etc/ssh/twingate-ca.pub
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.protocol: "ssh"
       twingate.groups: "Everyone"
 
   # Has no authentication at all. Publishing it is only reasonable because

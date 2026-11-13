@@ -4,7 +4,8 @@ Two Terraform deployments of the same Twingate stack. A Remote Network, a Connec
 Gateway, all as Docker containers. The Connector provides Zero Trust network access to
 anything you define as a Resource. The Gateway adds identity-aware access for web apps,
 passing the caller's identity through so that opening a supported app signs you in with no
-password.
+password, and for SSH, signing a short-lived certificate per session so there are no keys
+to manage. [`docker/`](docker) includes an SSH server to try it on.
 
 They differ in where the apps live and how Terraform learns about them.
 

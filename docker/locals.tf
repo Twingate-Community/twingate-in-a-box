@@ -4,7 +4,15 @@ locals {
   # an account that holds more than the box.
   name_prefix = "twingate-in-a-box-"
 
-  # The stack module creates this network and docker-compose.yaml joins it by
-  # name, so the string lives in three places and they have to agree.
-  network_name = "twingate"
+  # Every published service is reachable as <service>.box.internal. The stack
+  # module names the Docker network after this domain, and Docker DNS registers
+  # each service on it under <service>.<network>, so one name serves as the
+  # Twingate address, the upstream the Gateway dials, and what users type. The
+  # wildcard certificate covers it for web apps and SSH alike.
+  #
+  # docker-compose.yaml declares the network by this name, so the two must agree.
+  domain = "box.internal"
+
+  # The key services list under networks: in docker-compose.yaml.
+  compose_network = "twingate"
 }
