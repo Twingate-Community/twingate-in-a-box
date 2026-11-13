@@ -17,28 +17,37 @@ locals {
   # Config for the published set of Twingate Resources. The Gateway uses this to configure itself, and the Twingate provider uses it to create the Resources.
   twingate_services = {
     for service_name, labels in local.service_labels : service_name => {
-      # Compose registers every service under <service>.<network> in Docker's
-      # embedded DNS, so this resolves without any config in the compose file.
-      address = "${service_name}.${local.network_name}"
+      # web publishes a Web App Resource, ssh an SSH Resource. Each is validated
+      # in resources.tf, since a typo here would otherwise publish nothing.
+      protocol = try(labels["twingate.protocol"], "web")
 
-      # What users type. Defaults under the wildcard so the certificate already
-      # covers it. An explicit twingate.alias outside that domain still works,
-      # but puts this service back on the certificate.
-      alias = coalesce(try(labels["twingate.alias"], null), "${service_name}.${var.wildcard_domain}")
+      # Docker DNS registers every service under <service>.<network>, and the
+      # network is named after the domain, so this resolves with no config in the
+      # compose file and sits under the wildcard certificate. See locals.tf.
+      address = "${service_name}.${local.domain}"
 
-      # Serve this app over HTTPS, which the wildcard certificate covers. Set
-      # twingate.https=false to publish it over plain HTTP instead.
+      # Optional second name. An alias outside the domain still works, but puts
+      # that name on the certificate, which restarts the Gateway.
+      alias = try(labels["twingate.alias"], null)
+
+      # What users type.
+      host = coalesce(try(labels["twingate.alias"], null), "${service_name}.${local.domain}")
+
+      # Web only. Serve this app over HTTPS, which the wildcard certificate
+      # covers. Set twingate.https=false to publish it over plain HTTP instead.
       https = try(tobool(labels["twingate.https"]), true)
 
+      # 0 when unset. A web app must set it, an SSH server defaults to 22.
       upstream_port = tonumber(try(labels["twingate.port"], 0))
 
-      # How the Gateway reaches the app. Apps here speak plain HTTP, so the
-      # default is NONE. Set twingate.tls for a backend that serves TLS.
+      # Web only. How the Gateway reaches the app. Apps here speak plain HTTP, so
+      # the default is NONE. Set twingate.tls for a backend that serves TLS.
       upstream_tls_mode = try(labels["twingate.tls"], "NONE")
 
       display_name = try(labels["twingate.name"], service_name)
       group_names  = try(split(",", labels["twingate.groups"]), [])
 
+      # Web only.
       headers = {
         for label, value in labels : replace(label, "twingate.header.", "") => value
         if startswith(label, "twingate.header.")
@@ -46,6 +55,11 @@ locals {
     }
     if try(tobool(labels["twingate.enable"]), false)
   }
+
+  # Anything that is not ssh goes down the web path, so a bad protocol value
+  # reaches the web resource's precondition instead of silently disappearing.
+  web_services = { for name, service in local.twingate_services : name => service if service.protocol != "ssh" }
+  ssh_services = { for name, service in local.twingate_services : name => service if service.protocol == "ssh" }
 
   # Used to catch a published service that is not on the box network, which the
   # Gateway would be unable to resolve.
