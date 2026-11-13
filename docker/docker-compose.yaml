@@ -36,7 +36,6 @@ volumes:
   prometheus:
   grafana:
   uptimekuma:
-  ssh-hostkeys:
 
 configs:
   prometheus:
@@ -190,9 +189,6 @@ services:
     configs:
       - source: ssh-ca
         target: /etc/ssh/twingate-ca.pub
-    volumes:
-      # Host key, kept across recreates. The Gateway pins it on first use.
-      - ssh-hostkeys:/etc/ssh/keys
     networks:
       - twingate
     labels:
