@@ -18,6 +18,11 @@
 # - `twingate.header.<Header-Name>`: optional headers to inject into requests to the service
 #
 # Never add port mappings. This is what `twingate.port` is for.
+#
+# Every optional service sits in a profile named after it, and the `services`
+# Terraform variable picks which profiles are on. Terraform publishes only those
+# and writes COMPOSE_PROFILES to .env, so Compose starts the same set. A service
+# with no profile, like echo, is always on.
 
 # Pinned so the project does not take its name from the directory. Container names
 # feed the Prometheus targets below, and Terraform names its own containers to match.
@@ -82,6 +87,7 @@ services:
   # https://docs.openwebui.com/features/authentication-access/auth/sso/#trusted-header
   openwebui:
     image: ghcr.io/open-webui/open-webui:main
+    profiles: [openwebui]
     restart: unless-stopped
     environment:
       WEBUI_AUTH_TRUSTED_EMAIL_HEADER: X-Twingate-User
@@ -121,6 +127,8 @@ services:
   # reaches it over the box network, and nothing else needs to.
   prometheus:
     image: prom/prometheus:v3.5.0
+    # Only here to feed Grafana, so it comes and goes with it.
+    profiles: [grafana]
     restart: unless-stopped
     configs:
       - source: prometheus
@@ -134,6 +142,7 @@ services:
   # https://www.twingate.com/docs/web-app-grafana
   grafana:
     image: grafana/grafana:12.2.1
+    profiles: [grafana]
     restart: unless-stopped
     environment:
       GF_AUTH_JWT_ENABLED: "true"
@@ -161,13 +170,16 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
-      twingate.groups: "Admin,Everyone"
+      # Everyone exists in every tenant, so a trial account plans cleanly. Members
+      # of an Admin group, where one exists, still get Grafana's Admin role above.
+      twingate.groups: "Everyone"
       twingate.header.X-JWT-Assertion: "{{jwt}}"
 
   # Keeps its own login. Twingate supplies the name and the network isolation and
   # leaves the app's authentication alone, which is the plain reverse proxy case.
   uptimekuma:
     image: louislam/uptime-kuma:1
+    profiles: [uptimekuma]
     restart: unless-stopped
     volumes:
       - uptimekuma:/app/data
@@ -184,6 +196,7 @@ services:
   # The server only trusts the SSH CA. See ssh/ for how it is built.
   ssh:
     build: ./ssh
+    profiles: [ssh]
     hostname: ssh
     restart: unless-stopped
     configs:
@@ -200,6 +213,7 @@ services:
   # Twingate is the sole route to it and no port is bound on the host.
   ittools:
     image: corentinth/it-tools:2024.10.22-7ca5933
+    profiles: [ittools]
     restart: unless-stopped
     networks:
       - twingate
