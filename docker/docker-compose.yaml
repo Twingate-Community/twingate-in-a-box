@@ -86,7 +86,7 @@ services:
   # headers from the validated Twingate token, so the user is already logged in.
   # https://docs.openwebui.com/features/authentication-access/auth/sso/#trusted-header
   openwebui:
-    image: ghcr.io/open-webui/open-webui:main
+    image: ghcr.io/open-webui/open-webui:v0.13.3
     profiles: [openwebui]
     restart: unless-stopped
     environment:
