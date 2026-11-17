@@ -17,7 +17,8 @@ ssh-ca.pub
 # Replayed SSH sessions. They hold everything typed and shown in the session.
 *.cast
 
-# Holds your network slug. Compose reads it, and so does Terraform.
+# Written by terraform apply in docker/. Holds your network name and the Compose
+# profiles to start.
 .env
 
 .DS_Store
