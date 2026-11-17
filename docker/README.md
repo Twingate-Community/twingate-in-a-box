@@ -48,16 +48,38 @@ This is the standard approach for all Twingate deployments regardless of if they
 
 ## Usage
 
+To deploy on an Ubuntu VM with one command, see the
+[quick start](../README.md#quick-start-on-an-ubuntu-vm). On your own machine:
+
 ```bash
 cd docker
 cp terraform.tfvars.example terraform.tfvars   # add tg_api_token and tg_network
-cp .env.example .env                           # add your network name for Grafana's JWKS access
 terraform init
 terraform apply
 docker compose up -d
 ```
 
-Terraform creates the network that Compose joins, so it has to run first.
+Terraform creates the network that Compose joins, so it has to run first. It also writes
+`.env`, which Compose reads for your network name and the services to start.
+
+### Choosing services
+
+Every app apart from echo sits in a Compose profile named after it: `openwebui`,
+`grafana` (which brings Prometheus with it), `uptimekuma`, `ssh` and `ittools`. All of
+them run by default. To run a subset, list them in `terraform.tfvars`:
+
+```hcl
+services = ["grafana", "ssh"]
+```
+
+Terraform publishes only those, and the `COMPOSE_PROFILES` it writes to `.env` makes
+Compose start the same set. Run `terraform apply && docker compose up -d` as usual.
+Compose leaves a running service alone when its profile is switched off, so remove
+those yourself. `terraform output disabled_services` lists them:
+
+```bash
+docker compose rm -sf $(terraform output -json disabled_services | jq -r '.[]')
+```
 
 A green apply does not mean the Gateway is running. The image is distroless and has no
 healthcheck, so check that it stayed up:
