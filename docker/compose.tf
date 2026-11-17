@@ -14,6 +14,22 @@ locals {
     }
   }
 
+  # Which services are switched on. Each optional service sits in a Compose
+  # profile named after it, and var.services lists the profiles to turn on. A
+  # service with no profile is always on.
+  service_profiles = {
+    for service_name, service in local.compose_services :
+    service_name => try(tolist(service.profiles), [])
+  }
+  available_services = sort(distinct(flatten(values(local.service_profiles))))
+  enabled_profiles   = var.services == null ? local.available_services : distinct(var.services)
+
+  active_services = [
+    for service_name, profiles in local.service_profiles : service_name
+    if length(profiles) == 0 || length(setintersection(profiles, local.enabled_profiles)) > 0
+  ]
+  disabled_services = sort(tolist(setsubtract(keys(local.compose_services), local.active_services)))
+
   # Config for the published set of Twingate Resources. The Gateway uses this to configure itself, and the Twingate provider uses it to create the Resources.
   twingate_services = {
     for service_name, labels in local.service_labels : service_name => {
@@ -53,7 +69,7 @@ locals {
         if startswith(label, "twingate.header.")
       }
     }
-    if try(tobool(labels["twingate.enable"]), false)
+    if try(tobool(labels["twingate.enable"]), false) && contains(local.active_services, service_name)
   }
 
   # Anything that is not ssh goes down the web path, so a bad protocol value
