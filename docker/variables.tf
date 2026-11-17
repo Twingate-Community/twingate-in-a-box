@@ -9,6 +9,12 @@ variable "tg_network" {
   type        = string
 }
 
+variable "services" {
+  description = "Optional services to run and publish, by Compose profile name (openwebui, grafana, uptimekuma, ssh, ittools). Null runs all of them. An empty list leaves only echo, which is always on."
+  type        = list(string)
+  default     = null
+}
+
 variable "gateway_image" {
   description = "Gateway image."
   type        = string
