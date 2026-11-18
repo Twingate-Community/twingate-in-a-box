@@ -42,11 +42,20 @@ box in `/opt/twingate-in-a-box`, and creates everything in your Twingate tenant.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Twingate-Community/twingate-in-a-box/main/install.sh \
-  | sudo TG_API_TOKEN=<token> TG_NETWORK=<network> bash
+  | sudo TG_API_TOKEN=<token> TG_NETWORK=<network> TG_USERS=<email>,<email> bash
 ```
 
-Leave out either variable and the script asks for it. When it finishes it prints the app
-URLs and the box CA, with the commands to trust that CA on the machine you browse from.
+`TG_USERS` lists who can reach the box. Each address must already be a user in your
+tenant. The box puts them in a group of its own, `twingate-in-a-box-users`, and grants
+every app to that group, so it doesn't depend on any group your tenant may or may not
+have, and nobody else gets in. Re-run with a different `TG_USERS` to change who's in.
+
+Leave out any of the three variables and the script asks for it. When it finishes it
+prints the app URLs.
+
+Connect the Twingate Client and start at **`http://ca.box.internal`**. Apps are served over
+HTTPS by the box's own CA, and that page has the certificate and the commands to trust
+it, and later to remove it, on the machine you browse from.
 
 The VM needs:
 
@@ -58,8 +67,9 @@ The VM needs:
 
 ### Choosing services
 
-`TG_SERVICES` picks which apps run. Leave it unset for all of them. Echo is always on,
-since it is the quickest way to check that identity reaches an app.
+`TG_SERVICES` picks which apps run. Leave it unset for all of them. Two are always on:
+`ca`, the CA page above, and `echo`, the quickest way to check that identity reaches an
+app.
 
 | Name | What it shows |
 | --- | --- |
@@ -73,7 +83,7 @@ For example, a trial of web sign-in and SSH only:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Twingate-Community/twingate-in-a-box/main/install.sh \
-  | sudo TG_API_TOKEN=<token> TG_NETWORK=<network> TG_SERVICES=grafana,ssh bash
+  | sudo TG_API_TOKEN=<token> TG_NETWORK=<network> TG_USERS=<email> TG_SERVICES=grafana,ssh bash
 ```
 
 Re-run the command with a different `TG_SERVICES` to add or remove services on a running
@@ -88,7 +98,7 @@ into part of creating the VM:
 ```yaml
 #cloud-config
 runcmd:
-  - curl -fsSL https://raw.githubusercontent.com/Twingate-Community/twingate-in-a-box/main/install.sh | TG_API_TOKEN=<token> TG_NETWORK=<network> bash
+  - curl -fsSL https://raw.githubusercontent.com/Twingate-Community/twingate-in-a-box/main/install.sh | TG_API_TOKEN=<token> TG_NETWORK=<network> TG_USERS=<email> bash
 ```
 
 Follow progress in `/var/log/twingate-in-a-box-install.log`.
@@ -104,8 +114,10 @@ sudo bash /opt/twingate-in-a-box/install.sh --uninstall
 ```
 
 This deletes the containers, the Remote Network, the Resources and everything else the
-box created in your tenant. It leaves Docker and Terraform installed. Remove the CA from
-anywhere you trusted it, using the commands in [`docker/README.md`](docker/README.md).
+box created in your tenant, including the `twingate-in-a-box-users` group. It leaves
+Docker and Terraform installed. Remove the CA from anywhere you trusted it first, while
+`http://ca.box.internal` is still up to show you how, or use the commands in
+[`docker/README.md`](docker/README.md).
 
 ## Requirements
 

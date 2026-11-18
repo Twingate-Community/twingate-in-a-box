@@ -53,7 +53,7 @@ To deploy on an Ubuntu VM with one command, see the
 
 ```bash
 cd docker
-cp terraform.tfvars.example terraform.tfvars   # add tg_api_token and tg_network
+cp terraform.tfvars.example terraform.tfvars   # add tg_api_token, tg_network and users
 terraform init
 terraform apply
 docker compose up -d
@@ -64,7 +64,7 @@ Terraform creates the network that Compose joins, so it has to run first. It als
 
 ### Choosing services
 
-Every app apart from echo sits in a Compose profile named after it: `openwebui`,
+Every app apart from echo and ca sits in a Compose profile named after it: `openwebui`,
 `grafana` (which brings Prometheus with it), `uptimekuma`, `ssh` and `ittools`. All of
 them run by default. To run a subset, list them in `terraform.tfvars`:
 
@@ -88,8 +88,10 @@ healthcheck, so check that it stayed up:
 docker logs twingate-in-a-box-gateway
 ```
 
-Apps are published over HTTPS, so install the box CA before opening one. Terraform writes
-it to `ca.pem`. From this directory:
+Apps are published over HTTPS, so install the box CA before opening one. If the box is on
+a remote VM, connect the Twingate Client and open `http://ca.box.internal` to download
+the certificate and see the install commands. Otherwise, Terraform writes it to `ca.pem`
+in this directory:
 
 ```bash
 # macOS
@@ -156,6 +158,13 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
+```
+
+By default, the app is accessible to everyone in the `twingate-in-a-box-users` group
+(the users listed in the `users` variable). To restrict it to a different set of
+Twingate groups, add `twingate.groups`:
+
+```yaml
       twingate.groups: "MyGroup"
 ```
 
