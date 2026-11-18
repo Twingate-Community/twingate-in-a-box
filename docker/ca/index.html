@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Twingate in a Box CA</title>
+<style>
+  :root { --bg: #fff; --fg: #1a1a1a; --muted: #5f6368; --code: #f3f4f6; --accent: #1f6feb; --border: #e5e7eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #111418; --fg: #e6e6e6; --muted: #9aa0a6; --code: #1d2228; --accent: #58a6ff; --border: #2d333b; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 40px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 8px; }
+  h2 { font-size: 1.1rem; margin: 32px 0 8px; }
+  p { margin: 8px 0; }
+  .muted { color: var(--muted); }
+  .download { display: inline-block; margin: 16px 0 8px; padding: 10px 18px; border-radius: 8px; background: var(--accent); color: #fff; text-decoration: none; font-weight: 600; }
+  pre { background: var(--code); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; font-size: 0.9rem; }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .warn { border-left: 3px solid #d29922; padding: 4px 12px; margin: 24px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Trust the Twingate in a Box CA</h1>
+  <p class="muted">Apps in the box are served over HTTPS with certificates from the box's own CA.
+    Install it on the machine you browse from and every <code>https://*.box.internal</code> app opens without a warning.</p>
+
+  <a class="download" href="/ca.pem" download="twingate-in-a-box-ca.pem">Download the CA certificate</a>
+  <p class="muted">The commands below expect it in your Downloads folder as <code>twingate-in-a-box-ca.pem</code>.</p>
+
+  <h2>macOS</h2>
+  <pre><code>sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain ~/Downloads/twingate-in-a-box-ca.pem</code></pre>
+
+  <h2>Linux (Debian, Ubuntu)</h2>
+  <pre><code>sudo cp ~/Downloads/twingate-in-a-box-ca.pem /usr/local/share/ca-certificates/twingate-in-a-box-ca.crt
+sudo update-ca-certificates</code></pre>
+
+  <h2>Windows, from an elevated prompt</h2>
+  <pre><code>certutil -addstore -f Root %USERPROFILE%\Downloads\twingate-in-a-box-ca.pem</code></pre>
+
+  <p>Firefox keeps its own trust store. Import the file under Settings, Privacy &amp; Security, Certificates, View Certificates, Authorities.</p>
+  <p>Restart your browser afterwards so it picks up the change.</p>
+
+  <div class="warn">
+    <p><strong>Remove it when you are done.</strong> The CA is not limited to <code>box.internal</code>,
+      so whoever holds its private key could sign a certificate for any site.</p>
+  </div>
+
+  <h2>Removing it</h2>
+  <pre><code># macOS
+sudo security delete-certificate -c twingate-in-a-box-ca /Library/Keychains/System.keychain
+
+# Linux
+sudo rm /usr/local/share/ca-certificates/twingate-in-a-box-ca.crt
+sudo update-ca-certificates --fresh
+
+# Windows, from an elevated prompt
+certutil -delstore Root "twingate-in-a-box-ca"</code></pre>
+</main>
+</body>
+</html>

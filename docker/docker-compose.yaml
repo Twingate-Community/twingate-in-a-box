@@ -4,7 +4,9 @@
 # To publish a service, assign it to the `twingate` network and add `twingate.enable: "true"`
 # Configure the following labels to control how the Gateway interacts with the service:
 # - `twingate.port`: REQUIRED for web apps - the port the service listens on. SSH defaults to 22.
-# - `twingate.groups`: REQUIRED - comma-separated list of groups allowed to access the service
+# - `twingate.groups`: optional comma-separated list of existing Twingate groups allowed to
+#   access the service. Replaces the default, which is the group Terraform creates for the
+#   users in the `users` variable.
 # - `twingate.protocol`: optional, "web" (default) or "ssh". The https, tls and header
 #   labels below only apply to web apps.
 # - `twingate.alias`: optional second hostname. Every service is already reachable as
@@ -22,7 +24,7 @@
 # Every optional service sits in a profile named after it, and the `services`
 # Terraform variable picks which profiles are on. Terraform publishes only those
 # and writes COMPOSE_PROFILES to .env, so Compose starts the same set. A service
-# with no profile, like echo, is always on.
+# with no profile, like echo and ca, is always on.
 
 # Pinned so the project does not take its name from the directory. Container names
 # feed the Prometheus targets below, and Terraform names its own containers to match.
@@ -81,6 +83,14 @@ configs:
   ssh-ca:
     file: ./ssh-ca.pub
 
+  # Written by terraform apply. The box CA certificate, also not a secret: its
+  # private key stays in Terraform state.
+  ca-cert:
+    file: ./ca.pem
+
+  ca-page:
+    file: ./ca/index.html
+
 services:
   # Open WebUI, using its Trusted Header SSO. The Gateway injects the identity
   # headers from the validated Twingate token, so the user is already logged in.
@@ -104,7 +114,6 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "8080"
-      twingate.groups: "Everyone"
       # Headers injected at Gateway level. See variables.tf for the default set
 
   # Echoes the request back at /headers, which is the fastest way to confirm the
@@ -118,7 +127,6 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "8080"
-      twingate.groups: "Everyone"
       # Per-Resource, so only this service sees the token -- the Gateway-wide
       # headers deliberately omit it. /headers renders the full token.
       twingate.header.Authorization: "Bearer {{jwt}}"
@@ -170,9 +178,6 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3000"
-      # Everyone exists in every tenant, so a trial account plans cleanly. Members
-      # of an Admin group, where one exists, still get Grafana's Admin role above.
-      twingate.groups: "Everyone"
       twingate.header.X-JWT-Assertion: "{{jwt}}"
 
   # Keeps its own login. Twingate supplies the name and the network isolation and
@@ -188,7 +193,6 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "3001"
-      twingate.groups: "Everyone"
 
   # An SSH server with no keys or passwords to manage. Connect with
   # `ssh ssh.box.internal`: the Gateway takes the session and logs in here as
@@ -207,7 +211,6 @@ services:
     labels:
       twingate.enable: "true"
       twingate.protocol: "ssh"
-      twingate.groups: "Everyone"
 
   # Has no authentication at all. Publishing it is only reasonable because
   # Twingate is the sole route to it and no port is bound on the host.
@@ -220,4 +223,24 @@ services:
     labels:
       twingate.enable: "true"
       twingate.port: "80"
-      twingate.groups: "Everyone"
+
+  # Hands out the box CA, so the machine you browse from can trust the apps.
+  # Open http://ca.box.internal with the Client connected. Published over plain
+  # http because nobody trusts the CA yet the first time they open it. The
+  # Client's tunnel still encrypts the connection, and the certificate is
+  # public anyway: its private key never leaves Terraform state.
+  ca:
+    image: busybox:1.37
+    command: ["httpd", "-f", "-p", "8080", "-h", "/www"]
+    restart: unless-stopped
+    configs:
+      - source: ca-cert
+        target: /www/ca.pem
+      - source: ca-page
+        target: /www/index.html
+    networks:
+      - twingate
+    labels:
+      twingate.enable: "true"
+      twingate.port: "8080"
+      twingate.https: "false"
