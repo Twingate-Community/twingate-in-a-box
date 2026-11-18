@@ -6,11 +6,14 @@
 # /opt/twingate-in-a-box, and deploys docker/ into your Twingate tenant.
 #
 #   curl -fsSL https://raw.githubusercontent.com/Twingate-Community/twingate-in-a-box/main/install.sh \
-#     | sudo TG_API_TOKEN=... TG_NETWORK=... bash
+#     | sudo TG_API_TOKEN=... TG_NETWORK=... TG_USERS=... bash
 #
 # Environment:
 #   TG_API_TOKEN   Twingate API token with Read, Write and Provision permissions.
 #   TG_NETWORK     Your network name, the <network> in <network>.twingate.com.
+#   TG_USERS       Comma-separated emails of the Twingate users who can reach the
+#                  box. Each must already be a user in the tenant. A re-run
+#                  without it keeps the current list.
 #   TG_SERVICES    Optional. Comma-separated services to run: openwebui, grafana,
 #                  uptimekuma, ssh, ittools. Unset runs all of them on first
 #                  install and keeps the current set on a re-run. Set but empty
@@ -50,7 +53,7 @@ die()  { printf '\033[1;31merror:\033[0m %s\n' "$*" >&2; exit 1; }
 
 usage() {
   cat <<EOF
-Usage: sudo TG_API_TOKEN=... TG_NETWORK=... [TG_SERVICES=a,b] bash install.sh
+Usage: sudo TG_API_TOKEN=... TG_NETWORK=... TG_USERS=a@x.com,b@x.com [TG_SERVICES=a,b] bash install.sh
        sudo bash install.sh --uninstall
 
 Services: openwebui, grafana, uptimekuma, ssh, ittools. echo is always on.
@@ -101,12 +104,28 @@ tfvars_get() {
   sed -n "s/^$1 *= *\"\(.*\)\"\$/\1/p" "${file}" | head -n1
 }
 
-# The whole services line, so a re-run without TG_SERVICES keeps it as is.
-tfvars_services_line() {
+# A whole list line, such as services = [...], so a re-run without the matching
+# variable keeps it as is.
+tfvars_line() {
   local file
   file="$(tfvars_file)"
   [[ -f ${file} ]] || return 0
-  grep -E '^services *=' "${file}" | head -n1 || true
+  grep -E "^$1 *=" "${file}" | head -n1 || true
+}
+
+# Turns "a, b,,c" into ["a", "b", "c"] for HCL, checking each item against a
+# regex first. Dies on the first one that fails, naming the variable.
+hcl_list() {
+  local var="$1" value="$2" pattern="$3" item items=() parts=()
+  IFS=',' read -r -a parts <<<"$(printf '%s' "${value}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
+  for item in "${parts[@]}"; do
+    [[ -z ${item} ]] && continue
+    [[ ${item} =~ ${pattern} ]] || die "${var} has an invalid entry: '${item}'."
+    items+=("\"${item}\"")
+  done
+  local joined
+  joined="$(IFS=','; echo "${items[*]:-}")"
+  printf '[%s]' "${joined//,/, }"
 }
 
 # Escapes a value for a double-quoted HCL string, including template sequences.
@@ -148,22 +167,26 @@ resolve_inputs() {
   [[ ${NETWORK} =~ ^[a-z0-9][a-z0-9-]*$ ]] || die "TG_NETWORK '${NETWORK}' does not look like a Twingate network name."
   [[ -n ${TOKEN} ]] || die "TG_API_TOKEN is empty."
 
+  # Same order as the others: environment, then the existing tfvars, then ask.
+  # Terraform checks each address is a real user in the tenant.
+  local users="${TG_USERS:-}"
+  if [[ -n ${users} ]]; then
+    USERS_LINE="users = $(hcl_list TG_USERS "${users}" '^[^@",]+@[^@",]+$')"
+  else
+    USERS_LINE="$(tfvars_line users)"
+  fi
+  if [[ -z ${USERS_LINE} ]]; then
+    users="$(prompt TG_USERS "Emails of the Twingate users who can reach the box, comma-separated")"
+    USERS_LINE="users = $(hcl_list TG_USERS "${users}" '^[^@",]+@[^@",]+$')"
+  fi
+  [[ ${USERS_LINE} != "users = []" ]] || die "TG_USERS needs at least one email."
+
   # Unset keeps whatever is already in terraform.tfvars, which on a first install
   # is nothing, meaning every service. Set but empty means none.
   if [[ -n ${TG_SERVICES+set} ]]; then
-    local cleaned name items=()
-    cleaned="$(printf '%s' "${TG_SERVICES}" | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')"
-    IFS=',' read -r -a names <<<"${cleaned}"
-    for name in "${names[@]}"; do
-      [[ -z ${name} ]] && continue
-      [[ ${name} =~ ^[a-z0-9_-]+$ ]] || die "TG_SERVICES has an invalid name: '${name}'."
-      items+=("\"${name}\"")
-    done
-    local joined
-    joined="$(IFS=','; echo "${items[*]:-}")"
-    SERVICES_LINE="services = [${joined//,/, }]"
+    SERVICES_LINE="services = $(hcl_list TG_SERVICES "${TG_SERVICES}" '^[a-z0-9_-]+$')"
   else
-    SERVICES_LINE="$(tfvars_services_line)"
+    SERVICES_LINE="$(tfvars_line services)"
   fi
 }
 
@@ -175,6 +198,7 @@ write_tfvars() {
     echo "# Written by install.sh. Re-run it to change these, or edit and run terraform apply."
     echo "tg_api_token = \"$(hcl_escape "${TOKEN}")\""
     echo "tg_network   = \"$(hcl_escape "${NETWORK}")\""
+    echo "${USERS_LINE}"
     [[ -n ${SERVICES_LINE} ]] && echo "${SERVICES_LINE}"
   } >"${file}.tmp"
   chmod 0600 "${file}.tmp"
@@ -350,15 +374,18 @@ check_health() {
 
 summary() {
   cd "${BOX_DIR}"
-  local ca
-  ca="$(cat ca.pem)"
 
   cat <<EOF
 
 $(log "Twingate in a Box is running")
 
 Give the Connector about 30 seconds to register, then connect the Twingate Client
-on your own machine. Nothing on this VM needs an inbound port.
+on your own machine as one of the users in TG_USERS. Nothing on this VM needs an
+inbound port.
+
+Start at http://ca.box.internal. Apps are served over HTTPS by the box's own CA,
+and that page has the CA and the commands to trust it on the machine you browse
+from.
 
 Web apps:
 $(terraform output -json app_urls | jq -r 'to_entries[] | "    \(.value)"')
@@ -374,26 +401,14 @@ EOF
 
   cat <<EOF
 
-Apps are served over HTTPS by the box's own CA, so trust it on the machine you
-browse from. Paste this there to save it:
-
-cat > twingate-in-a-box-ca.pem <<'PEM'
-${ca}
-PEM
-
-Then install it:
-
-  macOS:   sudo security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain twingate-in-a-box-ca.pem
-  Linux:   sudo cp twingate-in-a-box-ca.pem /usr/local/share/ca-certificates/twingate-in-a-box-ca.crt && sudo update-ca-certificates
-  Windows: certutil -addstore -f Root twingate-in-a-box-ca.pem   (elevated prompt)
-
-The CA is not name-constrained, so remove it when you are done. The commands are
-in the README.
+The CA is not name-constrained, so remove it when you are done. The removal
+commands are on the same page.
 
 Terraform state in ${BOX_DIR} holds the CA private key, the Gateway's private key
 and the Connector tokens in plaintext. It is readable by root only. Keep it that way.
 
 To change services:  re-run with TG_SERVICES=...
+To change who's in:  re-run with TG_USERS=...
 To remove it all:    sudo bash ${INSTALL_DIR}/install.sh --uninstall
 Install log:         ${LOG_FILE}
 EOF
