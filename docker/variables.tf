@@ -9,6 +9,16 @@ variable "tg_network" {
   type        = string
 }
 
+variable "users" {
+  description = "Email addresses of the Twingate users who can reach the box. Terraform puts them in a group it creates, and grants every service without its own twingate.groups label to that group. Each must already be a user in the tenant."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.users) > 0
+    error_message = "List at least one user, or nobody will be able to reach anything in the box."
+  }
+}
+
 variable "services" {
   description = "Optional services to run and publish, by Compose profile name (openwebui, grafana, uptimekuma, ssh, ittools). Null runs all of them. An empty list leaves only echo, which is always on."
   type        = list(string)

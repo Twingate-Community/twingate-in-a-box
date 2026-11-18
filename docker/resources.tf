@@ -8,6 +8,16 @@ locals {
   ]))
 
   group_ids = { for name, found in data.twingate_groups.by_name : name => found.groups[0].id }
+
+  # A twingate.groups label replaces the default rather than adding to it, so a
+  # service can be narrowed to a team without the box group tagging along.
+  service_group_ids = {
+    for name, service in local.twingate_services : name => (
+      length(service.group_names) > 0
+      ? [for group in service.group_names : local.group_ids[group]]
+      : [twingate_group.box.id]
+    )
+  }
 }
 
 data "twingate_groups" "by_name" {
@@ -31,13 +41,6 @@ resource "terraform_data" "service_checks" {
     precondition {
       condition     = contains(["web", "ssh"], each.value.protocol)
       error_message = "Service '${each.key}' sets twingate.protocol to '${each.value.protocol}'. Use web or ssh."
-    }
-
-    # Without a group the Resource is created but nobody can reach it, which
-    # looks identical to a broken Gateway.
-    precondition {
-      condition     = length(each.value.group_names) > 0
-      error_message = "Service '${each.key}' sets twingate.enable but no twingate.groups. Name at least one Twingate group."
     }
 
     # The Gateway resolves the address over Docker DNS, which only answers for
@@ -79,7 +82,7 @@ resource "twingate_web_app_resource" "app" {
   request_header_rewrites = length(each.value.headers) > 0 ? each.value.headers : null
 
   dynamic "access_group" {
-    for_each = toset([for name in each.value.group_names : local.group_ids[name]])
+    for_each = toset(local.service_group_ids[each.key])
     content {
       group_id = access_group.value
     }
@@ -113,7 +116,7 @@ resource "twingate_ssh_resource" "ssh" {
   }
 
   dynamic "access_group" {
-    for_each = toset([for name in each.value.group_names : local.group_ids[name]])
+    for_each = toset(local.service_group_ids[each.key])
     content {
       group_id = access_group.value
     }

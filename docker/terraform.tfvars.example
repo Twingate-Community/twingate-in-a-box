@@ -2,3 +2,11 @@
 
 tg_api_token = "your-twingate-api-token"
 tg_network   = "yournetwork" # the <network> in <network>.twingate.com
+
+# Who can reach the box. Each must already be a user in your tenant. Terraform
+# puts them in a twingate-in-a-box-users group, which every service is granted
+# to unless it names its own groups with a twingate.groups label.
+users = ["you@example.com"]
+
+# Optional services to run. Leave it out to run all of them.
+# services = ["grafana", "ssh"]
